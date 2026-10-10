@@ -96,6 +96,13 @@ _TBD_
 - **No stock data.** Sales measure demand only where items were available. A sold-out style looks weaker
   than it was, and the success score can't tell supply apart from demand (see flag above).
 - Prices are scaled by Kaggle, so only comparisons between prices are meaningful.
+- **A style counts in its own group benchmark.** A strong style raises its category's benchmark and so
+  lowers its own score; in the extreme, a style that dominates its category scores ≈ 1. We tested a
+  leave-one-out benchmark (built only from the *other* styles in the category). It removed this effect,
+  but categories with only 2–3 styles produced extreme scores (> 100), and even with size floors the
+  winners became "default colour" categories (black belts, tights, leggings, ballerinas). So we kept the
+  inclusive benchmark for now. Single-style categories are negligible either way (35–49 per season,
+  ≈ 0.1% of revenue).
 
 ## Project structure
 

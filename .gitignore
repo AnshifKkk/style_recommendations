@@ -1,0 +1,18 @@
+# Raw Kaggle data (large, licensed by Kaggle — download separately)
+kaggle_downlods/
+data/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Generated caches
+*.parquet
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

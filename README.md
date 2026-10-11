@@ -131,6 +131,104 @@ Evidence ([`02_eda_trends.ipynb`](data_science/notebooks/02_eda_trends.ipynb)):
 
 The 22 days of September 2020 in the data belong to the target quarter. They are not used as model inputs.
 
+## Modelling approach
+
+### The problem
+
+- **Unit:** one row per style per quarter
+  ([`04_style_quarter_table.ipynb`](data_science/notebooks/04_style_quarter_table.ipynb)).
+- **Target:** that quarter's success score.
+- **Output:** a ranking of styles for the next quarter; the top 3 are the winners.
+- **Shape:** three properties decide the model:
+  - **Very short history per style:** at most 8 quarters, i.e. two seasonal cycles.
+  - **Many related styles:** ~23k styles share categories, colours, patterns and seasons, so a model can learn across styles.
+  - **Only the top of the ranking matters:** the target is heavily skewed (90% of style-quarters score below 0.25, the best ~4–5)
+    and about half of the rows are zero. Business users also need an explanation for every prediction.
+
+### Models considered
+
+| Family | Verdict | Reason |
+|---|---|---|
+| Baseline: last quarter's success score | **Baseline** | The simplest forecast: "next quarter looks like last quarter". Success persists between quarters, so it is a real bar to beat. |
+| Per-style time series (ARIMA, ETS, Prophet, Croston) | Rejected | See below. |
+| Deep learning (DeepAR, N-BEATS, Temporal Fusion Transformer, tabular MLP/TabNet) | Rejected | See below. |
+| Pretrained time-series models (Chronos, TimesFM) | Rejected | Forecast a single numeric series; our target is a relative score that depends on the other styles, and each series has ≤ 8 points. |
+| **Ridge regression** on engineered features, one model across all styles | **Final model** | Linear, regularised (stable with correlated features such as the different lags), fast, and every prediction decomposes exactly into feature contributions. |
+| **LightGBM** (gradient-boosted trees) on the same features | Compared | The standard non-linear model for tabular retail forecasting. Tests whether interactions and non-linear effects add anything. A learning-to-rank variant was also tried and ranked worse at the top. |
+| Hierarchical / Bayesian panel model | Future improvement | Shrinks small styles towards their category; interpretable, but slower to build. |
+| Image embeddings (CLIP/CNN) as features | Future improvement | Could capture fit and silhouette, which the attributes miss; needs the ~29 GB image set. |
+| Customer-level signals (early adopters, purchase embeddings) | Future improvement | Styles bought early by "trend-leading" customers may rise next; needs customer-level modelling. |
+
+**Why not per-style time series.** Classical models (ARIMA, ETS, Prophet) fit one series at a time. Each style has
+at most 8 quarterly points, and with a seasonal period of 4 that is only two cycles: too few to estimate trend
+*and* seasonality without fitting noise. They also learn nothing from the other 23k styles, while the strongest
+signals here are shared (e.g. "black solid basics persist", "sweaters rise in autumn"). New and young styles,
+with 1–3 quarters of history, can't be modelled at all.
+
+**Why not deep learning.** Sequence models (DeepAR, N-BEATS, TFT) learn patterns along time and need long series,
+typically dozens to hundreds of steps per series; we have 8. Moving to weekly data would give ~100 steps, but the
+decision and the target are quarterly, the models are data-hungry and slow to tune on a laptop, and their
+predictions are hard to explain to business users, which the brief requires. Tabular deep learning
+(MLP, TabNet) rarely beats simpler models on ~100k rows. The limiting factor is the length of history, which
+no architecture can add.
+
+**What we do instead.** Turn each style's history into features (lags, same quarter last year, recent weeks,
+seasonal share, category trends, attributes) and train **one model across all styles**. A short history becomes
+usable because the model learns from 145k style-quarters at once.
+
+### Features
+
+All features for a quarter use only data from before the quarter starts (`data_science/features/build.py`):
+
+| Group | Features |
+|---|---|
+| Style history | success score 1–4 quarters ago (4 = same quarter last year), 4-quarter mean / max / trend, quarters sold, age, time since last sale, last quarter's revenue, units, articles and full-price factor |
+| Recent momentum | success score in the last 4 weeks, revenue momentum, new articles launched in the last 13 weeks |
+| Seasonality | target season; share of the style's and its category's past revenue earned in that season |
+| Attributes | segment, product type, pattern, colour, tone (categorical) |
+| Attribute momentum | is the style's colour / pattern / tone gaining share of all revenue, year on year? |
+| Category context | category growth, number of competing styles, category benchmark |
+| Customers and price | buyers last quarter, repeat-purchase rate, online share, price relative to the category |
+
+### Evaluation
+
+- **Walk-forward:** for each evaluation quarter, models are trained only on earlier quarters and predict every style
+  with sales history. Winter 2019 and Spring 2020 are used to choose the model; **Summer 2020 is the test quarter**.
+- **Metric, top-3 quality:** the average actual success score of the three styles we pick ÷ the average actual score of
+  the true top three. 1.0 means our picks did as well as the best possible picks. It measures exactly the business
+  decision (which three styles to produce), and still gives credit when a pick is a near-miss.
+
+### Results
+
+| Model | Winter 2019 | Spring 2020 (COVID) | **Validation mean** | **Test: Summer 2020** |
+|---|---|---|---|---|
+| Baseline: last quarter | 0.866 | 0.717 | 0.791 | 0.839 |
+| **Ridge** | **0.921** | 0.879 | **0.900** | **0.894** |
+| LightGBM | 0.872 | **0.916** | 0.894 | 0.825 |
+
+- Both models beat the baseline, most clearly in Spring 2020 when COVID disrupted last quarter's pattern.
+- **Ridge is chosen**: best on validation and on the test quarter, simpler, and its explanations are exact.
+
+**Why a linear model is enough.** The relationship between a style's recent performance and its next-quarter
+performance is close to a straight line (on the log scale):
+
+- One straight line on a single feature, the success score in the last 4 weeks, explains **65%** of the variance
+  of next quarter's (log) score on the test quarter. Ridge with all features reaches **69%**, LightGBM **71%**.
+  The non-linear model adds only ~2 points.
+- LightGBM's learned effect of the last-4-weeks score rises steadily and then **flattens above ~1.5**: trees cannot
+  extrapolate beyond the values in a leaf, so the strongest styles all get similar predictions. That is exactly where
+  the top three are decided, and where a linear model, which keeps increasing, separates them better.
+- Most of the signal is persistence (recent and average past success) plus seasonality, both of which are additive.
+
+### Final model and prediction
+
+`python -m data_science.train` evaluates and then trains ridge on all labelled quarters (`models/ridge.joblib`).
+`python -m data_science.predict` scores every style for Autumn 2020 (`outputs/predictions.csv`) and writes each
+prediction's largest feature contributions (`outputs/explanations.csv`). Because the model is linear, a prediction is
+exactly the average prediction plus the sum of contributions, coefficient × (feature value − training average),
+which equals its SHAP values. The predicted score is on the success-score scale; values above the historical maximum
+reflect linear extrapolation and only the ranking is used.
+
 ## Limitations
 
 - **No stock data.** Sales measure demand only where items were available. A sold-out style looks weaker
@@ -147,23 +245,29 @@ The 22 days of September 2020 in the data belong to the target quarter. They are
 
 ```
 data_science/
-  data.py                     # loads the raw CSVs (builds a Parquet cache of transactions in data/)
+  data.py                     # loads and cleans the raw CSVs (Parquet cache of transactions in data/)
   features/
     style.py                  # style definition and style_id
     success.py                # success score
+    quarters.py               # fashion quarters and the style × quarter table
+    build.py                  # feature engineering
+  train.py                    # walk-forward evaluation + final model training
+  predict.py                  # scores the prediction quarter, with explanations
   notebooks/
     01_style_and_success_definition.ipynb   # style and success metric decisions
     02_eda_trends.ipynb                     # how style success changes over time → prediction period
     03_data_quality_and_eda.ipynb           # data quality, cleaning, sales/product/category/customer EDA
-backend/  frontend/  models/  outputs/   # to be filled
+    04_style_quarter_table.ipynb            # the style × quarter table and its target
+models/ridge.joblib           # final model
+outputs/                      # evaluation.csv, predictions.csv, explanations.csv
+backend/  frontend/           # to be filled
 ```
-
-_TBD: model training, backend, frontend, generated concepts._
 
 ## Setup
 
 ```bash
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt      # Windows (use .venv/bin/pip on macOS/Linux)
-.venv/Scripts/jupyter notebook data_science/notebooks/
+.venv/Scripts/python -m data_science.train      # evaluate + train the final model
+.venv/Scripts/python -m data_science.predict    # predict Autumn 2020
 ```

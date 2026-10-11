@@ -1,0 +1,10 @@
+quarter,model,top3_quality,split
+2019_winter,baseline: last quarter,0.8660931706977368,validation
+2019_winter,ridge,0.9206065096329887,validation
+2019_winter,lightgbm,0.8719584746761702,validation
+2020_spring,baseline: last quarter,0.7167371404727152,validation
+2020_spring,ridge,0.8788180730188914,validation
+2020_spring,lightgbm,0.9156123921244146,validation
+2020_summer,baseline: last quarter,0.8392558142950781,test
+2020_summer,ridge,0.8942034227548384,test
+2020_summer,lightgbm,0.82517601244104,test

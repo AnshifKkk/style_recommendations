@@ -96,3 +96,44 @@ class Health(BaseModel):
     status: Literal["ok"]
     quarter: str
     styles: int
+
+
+# ------------------------------------------------------------------ seasons (the app's timeline)
+SeasonStatus = Literal["actual", "predicted", "coming_soon"]
+
+
+class SeasonInfo(BaseModel):
+    quarter_id: str = Field(examples=["2020_autumn"])
+    label: str = Field(examples=["Autumn 2020"])
+    status: SeasonStatus = Field(description="actual = past season (ground truth), predicted = next quarter, "
+                                             "coming_soon = beyond the prediction horizon")
+    start: str
+    end: str
+
+
+class SeasonArticle(BaseModel):
+    article_id: str
+    name: str
+    description: str | None
+    units: int = Field(description="Units sold in that season (for the predicted season: in the last quarter)")
+    image_url: str | None
+
+
+class Concept(BaseModel):
+    image_url: str | None = Field(description="Generated next-season concept image, if available")
+    description: str | None = Field(description="What the concept keeps from the style and what it changes")
+
+
+class SeasonStyle(BaseModel):
+    rank: int
+    style_id: str
+    name: str
+    category: str
+    success_score: float = Field(description="Actual success score for past seasons, predicted for the next quarter")
+    score_explanation: str = Field(description="Plain-language meaning of the score (shown on hover)")
+    articles: list[SeasonArticle]
+    concept: Concept | None = Field(description="Only for the predicted season")
+
+
+class SeasonDetail(SeasonInfo):
+    styles: list[SeasonStyle]

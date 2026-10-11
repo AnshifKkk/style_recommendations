@@ -7,13 +7,16 @@ Endpoints
 - GET /styles/top?limit=3        the top predicted styles for the next quarter
 - GET /styles?limit=&offset=     the full ranking, with optional segment / product type filters
 - GET /styles/{style_id}         product information, prediction, explanation and sales history of one style
+- GET /seasons                   the timeline: past seasons (actual), the next quarter (predicted), later (coming soon)
+- GET /seasons/{quarter_id}      a season's top 3 styles with score, hover explanation, articles and (predicted) concepts
 """
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.model_service import StyleNotFound, StyleService, quarter_label
-from backend.schemas import Health, StyleDetail, StyleList, TopStylesResponse
+from backend.model_service import SeasonNotFound, StyleNotFound, StyleService, quarter_label
+from backend.schemas import Health, SeasonDetail, SeasonInfo, StyleDetail, StyleList, TopStylesResponse
 
 
 def create_app(service: StyleService | None = None) -> FastAPI:
@@ -25,8 +28,8 @@ def create_app(service: StyleService | None = None) -> FastAPI:
                     "Only commercially relevant styles (top 10% by revenue last quarter) are ranked.",
     )
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
-    if service.images_dir.is_dir():
-        app.mount("/images", StaticFiles(directory=service.images_dir), name="images")
+    if service.concepts_dir.is_dir():
+        app.mount("/concepts", StaticFiles(directory=service.concepts_dir), name="concepts")
 
     @app.get("/health", response_model=Health, tags=["meta"])
     def health():
@@ -57,6 +60,31 @@ def create_app(service: StyleService | None = None) -> FastAPI:
         except StyleNotFound:
             raise HTTPException(status_code=404, detail=f"Style '{style_id}' not found. "
                                                         "Use GET /styles to list valid style_ids.")
+
+    @app.get("/images/{style_id}/{filename}", include_in_schema=False)
+    def image(style_id: str, filename: str):
+        """An article image; a missing one is fetched from the image source the first time it is requested."""
+        article_id = filename.removesuffix(".jpg")
+        path = service.image_file(style_id, article_id) if filename.endswith(".jpg") else None
+        if path is None:
+            raise HTTPException(status_code=404, detail="Image not available")
+        return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+    @app.get("/seasons", response_model=list[SeasonInfo], tags=["seasons"])
+    def seasons():
+        """All seasons of the timeline, oldest first."""
+        return service.seasons()
+
+    @app.get("/seasons/{quarter_id}", response_model=SeasonDetail, tags=["seasons"],
+             responses={404: {"description": "Unknown season"}})
+    def season(quarter_id: str):
+        """A season's top 3 styles: actual winners for past seasons, predicted ones (with concepts) for the next
+        quarter, and an empty list for seasons that are coming soon."""
+        try:
+            return service.season(quarter_id)
+        except SeasonNotFound:
+            raise HTTPException(status_code=404, detail=f"Season '{quarter_id}' not found. "
+                                                        "Use GET /seasons to list valid seasons.")
 
     return app
 

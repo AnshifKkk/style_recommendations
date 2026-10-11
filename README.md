@@ -36,8 +36,12 @@ Place the raw CSVs in `kaggle_downlods/` (git-ignored).
   - Kept on purpose: identical transaction rows (~9%, multiple units, since there is no quantity column), very low prices
     (~0.01% of revenue) and bulk purchases (~0.2% of revenue). Details in
     [`03_data_quality_and_eda.ipynb`](data_science/notebooks/03_data_quality_and_eda.ipynb).
-- **Images: only what's needed.** The full set is ~29 GB; we only use images of the top styles and of the
-  articles shown in the app.
+- **Images: only the ones the app shows.** The full set is ~29 GB. The app shows the top 3 styles of every season
+  (actual winners for past seasons, predicted ones for the next quarter), each with its 5 best-selling articles of that
+  season: **93 images instead of ~105k**. A style contains hundreds of articles (the black dress style alone has 877), so
+  its best sellers act as representatives. The images are only used for display and as reference for concept generation;
+  the model never uses images, so this subset introduces **no bias in the predictions**. Each quarter `predict.py` writes
+  the list (`outputs/images_needed.csv`) and fetches only the images not yet present.
 - **COVID is kept and flagged.** Store sales are missing from 2020-03-20 to 2020-05-05 (all sales are online).
   Style rankings in Spring 2020 stay about as stable as in normal quarters, because the success score compares
   styles within their category, so the quarter is kept.
@@ -280,6 +284,7 @@ FastAPI service exposing the predictions (`backend/`). It reads only the artifac
 |---|---|
 | `backend/api.py` | routes, validation, error handling (FastAPI app factory `create_app`) |
 | `backend/model_service.py` | loads the model outputs and builds responses (ranking, explanations, history) |
+| `backend/images.py` | local image store that fetches a missing image on first request |
 | `backend/schemas.py` | response models (Pydantic); they generate the OpenAPI docs |
 | `backend/tests/test_api.py` | endpoint tests (`pytest backend/tests`) |
 
@@ -294,6 +299,8 @@ FastAPI service exposing the predictions (`backend/`). It reads only the artifac
 | `GET /styles/top?limit=3` | the top predicted styles (1–50), each with style ID, prediction score, category and sales history |
 | `GET /styles?limit=20&offset=0&segment=&product_type=&include_all=false` | the full ranking, paginated and filterable |
 | `GET /styles/{style_id}` | product information, prediction score, model explanation and historical performance; **404** for an unknown `style_id` |
+| `GET /seasons` | the app's timeline: past seasons (`actual`), the next quarter (`predicted`), the 4 after it (`coming_soon`) |
+| `GET /seasons/{quarter_id}` | a season's top 3 styles with success score, a plain-language explanation of the score, their 5 best-selling articles of that season, and (predicted season) the generated concept; empty for `coming_soon`, **404** for an unknown season |
 
 Scores in every style object:
 
@@ -338,9 +345,90 @@ best-selling articles (name, description, Kaggle image path), and an explanation
 }
 ```
 
-Images: article images are not in the repository (the Kaggle set is ~29 GB). Put `<article_id>.jpg` files in
-`outputs/images/` and the API serves them at `/images/<article_id>.jpg` and fills in `image_url`; every article also
-carries its `kaggle_image_path`.
+Images: the API returns an `image_url` for each style (its best-selling article) and each article. The source is
+configurable, so a new quarter needs no backend change:
+
+- **Default, local files:** `python -m data_science.predict` fetches the images listed in `outputs/images_needed.csv`
+  (each season's top 3 styles × 5 articles, only those still missing) into `outputs/images/<style_id>/` as its last step;
+  the API serves them at `/images/<style_id>/<article_id>.jpg`. It uses the Kaggle API (`kaggle auth login` once). Without a login, prediction still
+  completes and prints a warning; run `python -m data_science.fetch_images` later, or `--from-dir <folder>` to copy
+  images downloaded by hand.
+- **Image store / CDN:** set `IMAGE_URL_TEMPLATE`, e.g. `https://cdn.example.com/images/{prefix}/{article_id}.jpg`, and
+  the API builds the URLs from it with no local files. This is how it would run in production.
+- **On demand:** any image the app shows that isn't on disk yet is fetched from Kaggle the first time it is requested
+  (`GET /images/<style_id>/<article_id>.jpg`, about 4 s) and kept, so later views are instant. Only images of articles
+  the app can show are fetched (season winners and style detail articles); any other request returns 404. Without a
+  Kaggle login the request returns 404 and the app shows a placeholder. Disable with `IMAGES_ON_DEMAND=0`.
+  The Kaggle download code is shared by the pipeline and the API (`data_science/image_source.py`).
+- If an image is unavailable, the frontend shows a placeholder. Every article also carries its `kaggle_image_path`.
+
+## Frontend
+
+React + TypeScript + Tailwind (`frontend/`), consuming the API.
+
+```bash
+cd frontend
+npm install
+npm run dev            # http://localhost:5173 (expects the API on http://localhost:8000; override with VITE_API_URL)
+```
+
+- **Season timeline:** every past season (Winter 2018 → Summer 2020) shows its **actual** top 3 styles, the next quarter
+  (Autumn 2020) shows the **predicted** top 3 with an AI-generated concept per style, and later seasons show
+  "Coming soon", since predictions are made one quarter ahead. Autumn 2018 is left out: the data starts on 20 Sep 2018,
+  and without a previous quarter the business rule can't be applied.
+- **Pinterest-style boards:** each winning style is a board of its 5 best-selling articles of that season
+  (for the predicted season: of the last quarter), with the concept pinned first.
+- **Score:** every style shows its raw success score. Hovering explains it in plain words, e.g. *"4.47: this style
+  earned about 4.5× as much as a typical Ladieswear skirt style in Summer 2020, on revenue adjusted for discounts"*.
+  Predicted scores add that the best score seen in past seasons is 4.49, so values above it read as "very strong": the
+  model is validated on the ranking, not on the exact value.
+- **Detail view** (Details button): the style's images, attributes, the prediction for the next quarter (score, rank,
+  percentile, summary), the reasoning (feature contributions) and its historical performance per quarter.
+
+| File | Role |
+|---|---|
+| `src/api.ts` | typed API client |
+| `src/App.tsx` | page: timeline, season view, coming soon |
+| `src/components/SeasonTimeline.tsx` | season selector |
+| `src/components/StyleBoard.tsx`, `PinCard.tsx` | a style's masonry board and its cards |
+| `src/components/ScoreBadge.tsx` | score with hover explanation |
+| `src/components/StyleDetail.tsx`, `SalesChart.tsx` | detail view and history chart |
+
+## Next-season concepts (generative AI)
+
+![Next-season concepts](outputs/generated_concepts.png)
+
+`python -m data_science.generate_concepts` creates one new product concept for each predicted winning style.
+Full explanation per concept, **Predicted Style → Key Success Factors → New Product Concept**:
+[`outputs/concepts_explanation.md`](outputs/concepts_explanation.md).
+
+| Rank | Predicted style | Concept |
+|---|---|---|
+| 1 | Ladieswear · Skirt · Solid · Black · Dark | **Pleated Faux-Leather Midi Skirt**: high-waisted, sharp knife pleats, matching tie belt |
+| 2 | Ladieswear · Dress · Solid · Black · Dark | **Ponte Button Midi Dress**: structured ponte jersey, V-neck, long sleeves, covered front buttons |
+| 3 | Divided · Sweater · Solid · Black · Dark | **Mock Neck Volume Knit**: boxy knit, structured mock neck, voluminous balloon sleeves |
+
+How it works, in two steps per style (both on free tiers):
+
+1. **Design: Gemini (`gemini-3.8-flash`, sees images).** The prompt contains only what shapes the design: the season,
+   the style's attributes, and its **5 best-selling articles: photos attached plus their H&M descriptions**. Gemini returns
+   a very detailed specification (silhouette, length, waist/closures, fabric and weight, texture, construction, details,
+   hem, colour), what it **keeps** from the best sellers (naming which ones), what it **changes** for the season and why,
+   and a render-ready image prompt. Saved per style in `outputs/concepts/<style_id>.json`.
+2. **Render: FLUX.1 schnell on Cloudflare Workers AI** (free plan: 10,000 neurons/day; a concept costs well under 100)
+   turns the image prompt into a flat-lay catalogue photo.
+
+Then the three are assembled into `outputs/generated_concepts.png`, and the app shows each concept as the first pin of
+its style in the predicted season. The model's success factors are deliberately **not** in the prompt: sales numbers
+don't shape a garment's design. They appear in the explanation instead.
+
+Why this setup: Gemini's image models have no free API quota (free-tier limit 0) and Claude doesn't generate images, so
+the design is done by a free model that can see the photos, and the rendering by a free text-to-image model. Only
+missing designs/images are generated, so re-running each quarter only creates the new winners' concepts
+(`--force` regenerates all).
+
+Credentials go in environment variables or the git-ignored `.env` file: `GEMINI_API_KEY` (Google AI Studio),
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` (Cloudflare "Workers AI" token template).
 
 ## Limitations
 
@@ -365,7 +453,10 @@ data_science/
     quarters.py               # fashion quarters and the style × quarter table
     build.py                  # feature engineering
   train.py                    # walk-forward evaluation + final model training
-  predict.py                  # scores the prediction quarter, with explanations
+  predict.py                  # scores the prediction quarter, writes the API artifacts, fetches the images
+  fetch_images.py             # fetches the article images the app shows (only missing ones)
+  generate_concepts.py        # next-season concepts: Gemini designs from the best sellers, FLUX renders
+  image_source.py             # Kaggle image download, shared by the pipeline and the API
   notebooks/
     01_style_and_success_definition.ipynb   # style and success metric decisions
     02_eda_trends.ipynb                     # how style success changes over time → prediction period
@@ -379,7 +470,7 @@ backend/
   model_service.py            # reads model outputs, builds responses
   schemas.py                  # response models
   tests/test_api.py
-frontend/                     # to be filled
+frontend/                     # React app: season timeline, Pinterest-style boards, style detail view
 ```
 
 ## Setup
@@ -388,6 +479,9 @@ frontend/                     # to be filled
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt      # Windows (use .venv/bin/pip on macOS/Linux)
 .venv/Scripts/python -m data_science.train      # evaluate + train the final model
-.venv/Scripts/python -m data_science.predict    # predict Autumn 2020 + write the API artifacts
+.venv/Scripts/kaggle auth login                # once: lets the pipeline fetch the 93 images the app shows
+.venv/Scripts/python -m data_science.predict    # predict Autumn 2020, write the API artifacts, fetch the images
 .venv/Scripts/python -m uvicorn backend.api:app  # serve the API (http://localhost:8000/docs)
+.venv/Scripts/python -m data_science.generate_concepts  # next-season concepts (needs the keys in .env)
+cd frontend && npm install && npm run dev         # the app (http://localhost:5173)
 ```

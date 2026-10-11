@@ -1,0 +1,34 @@
+{
+  "name": "Mock Neck Volume Knit",
+  "keeps": [
+    "Voluminous balloon sleeves with elongated ribbed cuffs from the Vic Volume Sleeve Sweater and Fazer Balloon Sweater.",
+    "Pronounced dropped-shoulder armhole construction seen across the Vic, Jessica, and Fazer sweaters."
+  ],
+  "changes": [
+    "Added a clean standing mock neckline to provide transitional autumn warmth and elevated layering.",
+    "Utilised a textured 7-gauge half-cardigan rib stitch to introduce seasonal depth and tactile structure."
+  ],
+  "description": "A contemporary high-street black boxy knit combining a structured mock neckline with voluminous balloon sleeves for transitional Autumn 2020 styling.",
+  "design_details": {
+    "silhouette_and_fit": "Relaxed, boxy torso paired with exaggerated balloon sleeves tapered sharply at the wrists.",
+    "length_and_proportions": "High-hip crop measuring approximately 48 cm in total body length, designed to sit cleanly over high-rise trousers.",
+    "waist_neckline_and_closures": "Features a 4.5 cm standing mock neckline in a 1x1 rib with no hardware or closures.",
+    "fabric_and_weight": "Medium-weight 7-gauge yarn composed of an acrylic-cotton blend for affordable warmth and soft body.",
+    "texture_and_surface": "Prominent half-cardigan vertical rib throughout the body and sleeves, yielding a soft linear texture.",
+    "construction_and_seams": "Fully fashioned knit construction featuring dropped shoulder seams positioned 8 cm below the natural shoulder.",
+    "details_and_trims": "Subtle gathering at the lower sleeve where volume gathers into an elongated 7 cm ribbed cuff.",
+    "hem_and_finishing": "Finished with an integral 5 cm ribbed waistband that sits straight without cinching.",
+    "colour_and_finish": "Solid deep jet black with a uniform matte finish across all rib structures."
+  },
+  "visual_description": "This black knit sweater features a clean, architectural silhouette tailored for Autumn 2020. At the top, a 4.5 cm mock neck collar stands upright with vertical 1x1 ribbing. The body cut is boxy and relaxed, extending into dropped shoulder seams that fall noticeably off the natural shoulder line. The overall knit is executed in a medium-gauge half-cardigan rib, producing prominent vertical channels across the torso. From the low armholes, the sleeves billow out into full balloon shapes, maintaining exaggerated volume through the forearm. This volume gathers sharply at the wrist into a tailored 7 cm rib-knit cuff, creating dramatic taper and secure fit. The torso maintains a straight, non-tapered shape that hits at the high hip, slightly longer than an extreme crop but short enough to pair with high-waisted bottoms. The bottom hem is completed with a neat 5 cm ribbed band matching the collar texture, creating a cohesive frame. In rich, matte black with dense yarn coverage, the sweater offers bold textural depth while remaining completely monochrome.",
+  "image_prompt": "A solid black knit sweater featuring a ribbed mock neck collar, dropped shoulders, and voluminous balloon sleeves tapering into long fitted ribbed cuffs. The body has a boxy, slightly cropped silhouette hitting at the high hip, rendered in a textured half-cardigan vertical rib knit with a clean ribbed bottom hem. flat lay e-commerce catalogue photograph of the single garment, photographed from directly above, on a plain light grey background, soft even studio lighting, sharp fabric detail, no person, no model, no mannequin, no other items, no text, no logo",
+  "text_model": "gemini-3.8-flash",
+  "reference_articles": [
+    "0873217004",
+    "0842000001",
+    "0909081002",
+    "0855239001",
+    "0889753001"
+  ],
+  "prompt": "You are a senior fashion designer at a high-street retailer, designing a new product for the Autumn 2020 collection.\n\nSTYLE TO DESIGN FOR: Divided · Sweater · Solid · Black · Dark tone\n\nThe attached photos are this style's best-selling articles, in this order:\n1. Vic Volume Sleeve Sweater: Slightly shorter jumper in a soft double knit with a round neckline, dropped shoulders, long balloon sleeves with close-fitting ribbing at the cuffs, and a ribbed hem.\n2. Shelly Polo Neck: Fitted jumper in a soft, rib-knit viscose blend with a polo neck, long sleeves and short slits in the sides.\n3. Jessica Long Sweater: Straight-style jumper in a soft, loose knit with a wide neckline, low dropped shoulders, long sleeves and slits in the sides. Longer at the back.\n4. Lisa LS: Long-sleeved top in soft cotton jersey. Round neckline with a narrow, ribbed trim and dropped shoulders.\n5. Fazer balloon sweater: Cropped, boxy-style top in sweatshirt fabric made from a cotton blend. Round neckline, dropped shoulders, long balloon sleeves with close-fitting, ribbed cuffs and a cut-off hem.\n\nStudy every photo and description closely: silhouette, length, fit, waistband or neckline, closures, seams, fabric,\ntexture, weight and drape, hems and finishing details. Identify the visual ideas they share.\n\nThen design ONE new sweater for Autumn 2020:\n- Stay within the style: Divided, sweater, solid, black, dark tone.\n- KEEP the strongest visual ideas the best sellers share.\n- CHANGE something meaningful for Autumn 2020 (silhouette, length, construction details, fabric or texture), so it\n  is a genuinely new product and not a copy of any best seller.\n- Keep it realistic to produce at high-street prices.\n\nBe very specific and concrete: a pattern maker must be able to draw it, and an image generator must be able to render it\nexactly. Use measurable or visual terms (e.g. \"hem 8 cm below the knee\", \"5 cm wide rib-knit waistband\"), not vague ones.\n\nAnswer as JSON with exactly these keys:\n\"name\": 2-4 word product name,\n\"keeps\": list of 2-4 visual ideas taken from the best sellers, each saying which best seller(s) it comes from,\n\"changes\": list of 2-4 design changes for Autumn 2020, each saying why it suits the season,\n\"description\": one sentence for a merchandiser,\n\"design_details\": object with these keys, each 1-3 detailed sentences:\n    \"silhouette_and_fit\", \"length_and_proportions\", \"waist_neckline_and_closures\", \"fabric_and_weight\",\n    \"texture_and_surface\", \"construction_and_seams\", \"details_and_trims\", \"hem_and_finishing\", \"colour_and_finish\",\n\"visual_description\": a 150-250 word paragraph describing exactly what the garment looks like, from top to bottom,\n\"image_prompt\": a 60-110 word prompt for a text-to-image model that describes the garment's look precisely (start with\n    the colour and garment type, name every visible detail) and ends with: \"flat lay e-commerce catalogue photograph of the single garment, photographed from directly above, on a plain light grey background, soft even studio lighting, sharp fabric detail, no person, no model, no mannequin, no other items, no text, no logo\"."
+}

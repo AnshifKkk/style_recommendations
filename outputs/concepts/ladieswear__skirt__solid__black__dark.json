@@ -1,0 +1,36 @@
+{
+  "name": "Pleated Faux-Leather Midi Skirt",
+  "keeps": [
+    "High-rise comfortable waist construction (Florida, Tangerine, Cezanne)",
+    "Calf-length fluid midi proportion (Florida, Cezanne)",
+    "Removable self-fabric tie belt for waist definition (Libra)"
+  ],
+  "changes": [
+    "Replaced lightweight viscose and jersey with structured matte faux leather for autumn weather protection and warmth",
+    "Introduced heat-set knife pleats for structured seasonal drape and heavier volume",
+    "Tailored length to sit mid-calf to pair with autumn boots"
+  ],
+  "description": "A versatile high-waisted midi skirt in solid black faux leather with sharp knife pleats and a matching tie belt.",
+  "design_details": {
+    "silhouette_and_fit": "A-line silhouette fitted at the natural waist and falling into a flared, pleated midi skirt.",
+    "length_and_proportions": "Mid-calf length measuring 78 cm from waist to hem with a 4 cm wide waistband.",
+    "waist_neckline_and_closures": "High waist with a flat front panel, elasticated back casing, side-seam invisible zipper, and self-fabric tie belt.",
+    "fabric_and_weight": "Medium-weight polyurethane faux leather with a brushed polyester knit backing (240 gsm).",
+    "texture_and_surface": "Fine-grained matte finish that holds sharp pleats while remaining supple.",
+    "construction_and_seams": "Vertical 2 cm knife pleats heat-set throughout; clean side seams with concealed closure.",
+    "details_and_trims": "Four narrow thread belt loops at the waist accommodating a 4 cm wide self-tie belt.",
+    "hem_and_finishing": "Clean laser-cut raw hem maintaining crisp pleat edges without bulk.",
+    "colour_and_finish": "Solid deep ink-black with a low-lustre, water-resistant matte finish."
+  },
+  "visual_description": "Laid completely flat, the skirt displays an A-line midi silhouette in deep black matte faux leather. The top features a tailored 4 cm waistband that is smooth across the front, flanked by small thread belt loops securing a matching flat tie belt tied at the centre. Extending directly from the waistband, uniform 2 cm knife pleats cascade down the full body of the garment, creating distinct vertical shadow lines and structured volume. The fabric presents a smooth, supple leather-like grain with a subtle low-sheen finish. At the bottom, the mid-calf hem finishes with a clean, unstitched laser-cut edge that allows the pleats to hang sharply.",
+  "image_prompt": "Solid black pleated midi skirt in supple matte faux leather. Features a high 4 cm waistband with flat front, belt loops, and an attached self-fabric tie belt knotted at the center, leading to uniform 2 cm knife pleats falling to a clean-cut mid-calf hemline. flat lay e-commerce catalogue photograph of the single garment, photographed from directly above, on a plain light grey background, soft even studio lighting, sharp fabric detail, no person, no model, no mannequin, no other items, no text, no logo",
+  "text_model": "gemini-3.8-flash",
+  "reference_articles": [
+    "0768921001",
+    "0851400001",
+    "0877643001",
+    "0849257001",
+    "0861173003"
+  ],
+  "prompt": "You are a senior fashion designer at a high-street retailer, designing a new product for the Autumn 2020 collection.\n\nSTYLE TO DESIGN FOR: Ladieswear · Skirt · Solid · Black · Dark tone\n\nThe attached photos are this style's best-selling articles, in this order:\n1. Tuby skirt: Short, fitted skirt in jersey with an elasticated waist.\n2. Florida skirt: Pleated, calf-length skirt in woven fabric with a high, elasticated waist. Unlined.\n3. Cezanne: Calf-length skirt in a textured weave. High waist with covered elastication, a seam at the thighs and a flare to the hem. Lined.\n4. Libra skirt: Short skirt in a softly draping weave with a high waist and detachable tie belt. Concealed zip at the back, side pockets and pleats at the top to create soft draping. Unlined.\n5. Tangerine: Long, high-waisted skirt in a viscose weave with covered elastication at the waist and gathered seams creating tiers at the thighs and knees for added width. Unlined.\n\nStudy every photo and description closely: silhouette, length, fit, waistband or neckline, closures, seams, fabric,\ntexture, weight and drape, hems and finishing details. Identify the visual ideas they share.\n\nThen design ONE new skirt for Autumn 2020:\n- Stay within the style: Ladieswear, skirt, solid, black, dark tone.\n- KEEP the strongest visual ideas the best sellers share.\n- CHANGE something meaningful for Autumn 2020 (silhouette, length, construction details, fabric or texture), so it\n  is a genuinely new product and not a copy of any best seller.\n- Keep it realistic to produce at high-street prices.\n\nBe very specific and concrete: a pattern maker must be able to draw it, and an image generator must be able to render it\nexactly. Use measurable or visual terms (e.g. \"hem 8 cm below the knee\", \"5 cm wide rib-knit waistband\"), not vague ones.\n\nAnswer as JSON with exactly these keys:\n\"name\": 2-4 word product name,\n\"keeps\": list of 2-4 visual ideas taken from the best sellers, each saying which best seller(s) it comes from,\n\"changes\": list of 2-4 design changes for Autumn 2020, each saying why it suits the season,\n\"description\": one sentence for a merchandiser,\n\"design_details\": object with these keys, each 1-3 detailed sentences:\n    \"silhouette_and_fit\", \"length_and_proportions\", \"waist_neckline_and_closures\", \"fabric_and_weight\",\n    \"texture_and_surface\", \"construction_and_seams\", \"details_and_trims\", \"hem_and_finishing\", \"colour_and_finish\",\n\"visual_description\": a 150-250 word paragraph describing exactly what the garment looks like, from top to bottom,\n\"image_prompt\": a 60-110 word prompt for a text-to-image model that describes the garment's look precisely (start with\n    the colour and garment type, name every visible detail) and ends with: \"flat lay e-commerce catalogue photograph of the single garment, photographed from directly above, on a plain light grey background, soft even studio lighting, sharp fabric detail, no person, no model, no mannequin, no other items, no text, no logo\"."
+}

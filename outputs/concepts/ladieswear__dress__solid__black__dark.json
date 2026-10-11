@@ -1,0 +1,36 @@
+{
+  "name": "Ponte Button Midi Dress",
+  "keeps": [
+    "Subtle, clean-finished V-neckline (Romeo, CS Paula)",
+    "Vertical centre-front covered button placket (CS Paula)",
+    "Defined horizontal waist seam transitioning into an A-line skirt (Romeo, CS Paula)"
+  ],
+  "changes": [
+    "Replaced short sleeves with full-length slim sleeves to provide essential Autumn warmth and layering utility.",
+    "Extended the skirt length from mini/knee to a 115 cm midi hem to suit cooler seasonal temperatures and pair with boots.",
+    "Upgraded fabric from light cotton jersey to a mid-weight 290 gsm Ponte Roma double-knit for seasonal structure and drape."
+  ],
+  "description": "An Autumn-ready black midi dress in structured Ponte jersey, detailed with a clean V-neck, long sleeves, and front covered buttons.",
+  "design_details": {
+    "silhouette_and_fit": "Fitted through the bodice and natural waist, releasing into a gently flared A-line midi skirt.",
+    "length_and_proportions": "Midi length finishing roughly 15 cm below the knee (115 cm back length for size 36). Balanced with full-length slim sleeves.",
+    "waist_neckline_and_closures": "An 18 cm deep V-neckline with self-facing. Fastened down the centre front by ten functional covered buttons ending at mid-thigh.",
+    "fabric_and_weight": "Medium-weight 290 gsm compact Ponte Roma knit (viscose/polyester/elastane blend) offering thermal comfort and shape retention.",
+    "texture_and_surface": "Dense, ultra-smooth double-knit jersey with two-way stretch and a low-sheen, uniform surface.",
+    "construction_and_seams": "Fitted bust darts, set-in sleeves, horizontal waistline seam, and reinforced overlocked internal construction.",
+    "details_and_trims": "Ten 14 mm self-fabric dome buttons placed at 4.5 cm intervals along the centre front.",
+    "hem_and_finishing": "Blind-stitched 2.5 cm turned hemline at the skirt and twin-needle 2 cm sleeve cuffs. Unlined finish.",
+    "colour_and_finish": "Solid deep black (Pantone 19-4008 TCX) with an opaque, light-absorbing matte finish."
+  },
+  "visual_description": "A solid jet-black long-sleeved midi dress laid completely flat. At the top, the garment features an open, clean-finished V-neckline leading directly into a tailored central front placket. The placket runs vertically down the bodice and into the skirt, secured with a row of ten self-fabric covered dome buttons. The dress is constructed with narrow set-in shoulders and full-length, straight sleeves that finish with clean 2 cm folded cuffs. A clear horizontal seam defines the natural waistline, separating the fitted upper bodice from the lower section. Below the waist seam, the skirt transitions into a gently flared A-line silhouette, cut with fluid drape that falls smoothly to a calf-length midi hem. The hemline is straight across the front and back, finished with a subtle blind stitch. The double-knit Ponte fabric presents a flat, smooth, and matte deep-black surface with clean seam lines throughout. The entire garment is unlined, showcasing crisp edge finishes and a classic, structured high-street design.",
+  "image_prompt": "Solid black long-sleeved midi dress, clean V-neckline, full-length slim sleeves, fitted bodice with natural waist seam, front button placket with ten tonal covered buttons, softly flared A-line midi skirt, smooth matte Ponte jersey fabric, neat blind-stitched hem, flat lay e-commerce catalogue photograph of the single garment, photographed from directly above, on a plain light grey background, soft even studio lighting, sharp fabric detail, no person, no model, no mannequin, no other items, no text, no logo",
+  "text_model": "gemini-3.8-flash",
+  "reference_articles": [
+    "0885710002",
+    "0841434001",
+    "0859077005",
+    "0883033001",
+    "0816166001"
+  ],
+  "prompt": "You are a senior fashion designer at a high-street retailer, designing a new product for the Autumn 2020 collection.\n\nSTYLE TO DESIGN FOR: Ladieswear · Dress · Solid · Black · Dark tone\n\nThe attached photos are this style's best-selling articles, in this order:\n1. Romeo dress: Knee-length, V-neck dress in jersey with short sleeves, a sewn-in wrapover at the top and decorative ties at one side. Unlined.\n2. Amalia: Short, straight-cut T-shirt dress in sturdy cotton jersey with a round, rib-trimmed neckline. Unlined.\n3. Nora dress(1): Short, straight-style T-shirt dress in soft jersey made from a cotton blend with a round, slightly wider neckline. Short sleeves with sewn-in turn-ups, and short slits in the sides. Unlined.\n4. CS Paula dress: Short, V-neck dress in cotton jersey with covered buttons down the front and short puff sleeves with narrow elastication at the hems. Seam at the waist and a gently flared skirt. Unlined.\n5. Sorrel: Short, straight-cut dress in woven fabric with a small stand-up collar and V-neck opening at the top. Dropped shoulders, short sleeves with sewn-in turn-ups, and a rounded hem. Slightly longer at the back. Unlined.\n\nStudy every photo and description closely: silhouette, length, fit, waistband or neckline, closures, seams, fabric,\ntexture, weight and drape, hems and finishing details. Identify the visual ideas they share.\n\nThen design ONE new dress for Autumn 2020:\n- Stay within the style: Ladieswear, dress, solid, black, dark tone.\n- KEEP the strongest visual ideas the best sellers share.\n- CHANGE something meaningful for Autumn 2020 (silhouette, length, construction details, fabric or texture), so it\n  is a genuinely new product and not a copy of any best seller.\n- Keep it realistic to produce at high-street prices.\n\nBe very specific and concrete: a pattern maker must be able to draw it, and an image generator must be able to render it\nexactly. Use measurable or visual terms (e.g. \"hem 8 cm below the knee\", \"5 cm wide rib-knit waistband\"), not vague ones.\n\nAnswer as JSON with exactly these keys:\n\"name\": 2-4 word product name,\n\"keeps\": list of 2-4 visual ideas taken from the best sellers, each saying which best seller(s) it comes from,\n\"changes\": list of 2-4 design changes for Autumn 2020, each saying why it suits the season,\n\"description\": one sentence for a merchandiser,\n\"design_details\": object with these keys, each 1-3 detailed sentences:\n    \"silhouette_and_fit\", \"length_and_proportions\", \"waist_neckline_and_closures\", \"fabric_and_weight\",\n    \"texture_and_surface\", \"construction_and_seams\", \"details_and_trims\", \"hem_and_finishing\", \"colour_and_finish\",\n\"visual_description\": a 150-250 word paragraph describing exactly what the garment looks like, from top to bottom,\n\"image_prompt\": a 60-110 word prompt for a text-to-image model that describes the garment's look precisely (start with\n    the colour and garment type, name every visible detail) and ends with: \"flat lay e-commerce catalogue photograph of the single garment, photographed from directly above, on a plain light grey background, soft even studio lighting, sharp fabric detail, no person, no model, no mannequin, no other items, no text, no logo\"."
+}

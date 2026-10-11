@@ -78,3 +78,69 @@ def test_styles_outside_business_rule_have_no_rank(client):
     unranked = [s for s in body["styles"] if s["rank"] is None]
     assert unranked, "expected some styles outside the business rule among the top 200"
     assert all(s["percentile"] is None for s in unranked)
+
+
+def test_local_images_are_served(tmp_path):
+    from backend.api import create_app
+    from backend.model_service import StyleService
+    service = StyleService(images_dir=tmp_path, image_url_template=None)
+    style_id = service.top(1)["styles"][0]["style_id"]
+    article_id = service.get(style_id)["articles"][0]["article_id"]
+    (tmp_path / style_id).mkdir()
+    (tmp_path / style_id / f"{article_id}.jpg").write_bytes(b"\xff\xd8\xff")   # JPEG magic bytes as a stand-in image
+    client = TestClient(create_app(service))
+    url = client.get("/styles/top?limit=1").json()["styles"][0]["image_url"]
+    assert url == f"/images/{style_id}/{article_id}.jpg"
+    assert client.get(url).status_code == 200
+
+
+def test_unknown_or_unavailable_images_return_404(tmp_path):
+    from backend.api import create_app
+    from backend.model_service import StyleService
+    service = StyleService(images_dir=tmp_path, image_url_template=None, images_on_demand=False)
+    style_id = service.top(1)["styles"][0]["style_id"]
+    article_id = service.get(style_id)["articles"][0]["article_id"]
+    client = TestClient(create_app(service))
+    assert client.get(f"/images/{style_id}/{article_id}.jpg").status_code == 404        # known, but not on disk
+    assert client.get(f"/images/{style_id}/0000000000.jpg").status_code == 404          # not an image the app shows
+    assert client.get(f"/images/{style_id}/../../README.md").status_code == 404
+
+
+def test_image_url_template():
+    from backend.model_service import StyleService
+    service = StyleService(image_url_template="https://cdn.example.com/{prefix}/{article_id}.jpg")
+    article = service.get(service.top(1)["styles"][0]["style_id"])["articles"][0]
+    assert article["image_url"] == f"https://cdn.example.com/{article['article_id'][:3]}/{article['article_id']}.jpg"
+
+
+def test_seasons_timeline(client):
+    seasons = client.get("/seasons").json()
+    statuses = [s["status"] for s in seasons]
+    assert statuses.count("predicted") == 1
+    first_predicted = statuses.index("predicted")
+    assert set(statuses[:first_predicted]) == {"actual"} and set(statuses[first_predicted + 1:]) == {"coming_soon"}
+
+
+def test_past_season_shows_actual_top3_with_articles(client):
+    past = next(s for s in client.get("/seasons").json() if s["status"] == "actual")
+    body = client.get(f"/seasons/{past['quarter_id']}").json()
+    assert [s["rank"] for s in body["styles"]] == [1, 2, 3]
+    scores = [s["success_score"] for s in body["styles"]]
+    assert scores == sorted(scores, reverse=True)
+    for style in body["styles"]:
+        assert len(style["articles"]) == 5 and style["concept"] is None
+        assert "as much as a typical" in style["score_explanation"]
+
+
+def test_predicted_season_has_concept_slot(client):
+    predicted = next(s for s in client.get("/seasons").json() if s["status"] == "predicted")
+    body = client.get(f"/seasons/{predicted['quarter_id']}").json()
+    assert len(body["styles"]) == 3
+    assert all(s["concept"] is not None and "(predicted)" in s["score_explanation"] for s in body["styles"])
+
+
+def test_coming_soon_and_unknown_seasons(client):
+    coming = next(s for s in client.get("/seasons").json() if s["status"] == "coming_soon")
+    assert client.get(f"/seasons/{coming['quarter_id']}").json()["styles"] == []
+    assert client.get("/seasons/2035_spring").status_code == 404
+    assert client.get("/seasons/not_a_season").status_code == 404

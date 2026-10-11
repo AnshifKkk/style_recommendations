@@ -10,6 +10,8 @@ import pyarrow as pa
 import pyarrow.csv as pacsv
 import pyarrow.parquet as pq
 
+from data_science.features.style import STYLE_ATTRIBUTES
+
 ROOT = Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "kaggle_downlods"
 CACHE_DIR = ROOT / "data"
@@ -21,16 +23,24 @@ NON_FASHION_GROUPS = ["Items", "Cosmetic", "Furniture", "Garment and Shoe care",
                       "Interior textile", "Stationery", "Fun"]
 
 
-def load_articles(raw_dir: Path = RAW_DIR, fashion_only: bool = True) -> pd.DataFrame:
+# Attribute values that mean "not recorded"; an article with one of these in a style attribute has no defined style.
+UNKNOWN_VALUES = ["unknown", "undefined"]
+
+
+def load_articles(raw_dir: Path = RAW_DIR, clean: bool = True) -> pd.DataFrame:
     """Article attributes, with `article_id` as int64 (matching transactions).
 
-    By default non-fashion product groups are removed. Transactions of those articles then drop out
-    wherever transactions are joined to articles.
+    With `clean=True` (default) two groups of articles are removed (~0.4% of revenue together):
+    - non-fashion product groups (`NON_FASHION_GROUPS`),
+    - articles with an unknown/undefined value in any style attribute.
+    Transactions of removed articles drop out wherever transactions are joined to articles.
     """
     art = pd.read_csv(raw_dir / "articles.csv", dtype={"article_id": str, "product_code": str})
     art["article_id"] = art["article_id"].astype("int64")
-    if fashion_only:
-        art = art[~art.product_group_name.isin(NON_FASHION_GROUPS)].reset_index(drop=True)
+    if clean:
+        non_fashion = art.product_group_name.isin(NON_FASHION_GROUPS)
+        unknown = art[STYLE_ATTRIBUTES].apply(lambda c: c.astype(str).str.lower().isin(UNKNOWN_VALUES)).any(axis=1)
+        art = art[~non_fashion & ~unknown].reset_index(drop=True)
     return art
 
 

@@ -28,10 +28,14 @@ Place the raw CSVs in `kaggle_downlods/` (git-ignored).
 - **Transactions: all of them, no sampling.** The data isn't too big for a laptop (16 GB RAM): as a Parquet
   cache the transactions take 0.77 GB on disk and ~0.7 GB in memory, and load in seconds. Using everything avoids
   sampling bias. The days 1–22 Sep 2020 belong to the prediction quarter and are not used as model input.
-- **Non-fashion items removed.** Articles in the product groups Items, Cosmetic, Furniture, Garment and Shoe
-  care, Interior textile, Stationery and Fun (98 articles; ~0.01% of revenue) are excluded, together with their
-  transactions. They have no style to predict. This leaves 105,444 articles and 31,780,277 transactions.
-  Implemented in `data_science/data.py` (`NON_FASHION_GROUPS`).
+- **Cleaning: 376 articles removed, together with their transactions (99.6% of revenue kept).**
+  - Non-fashion product groups: Items, Cosmetic, Furniture, Garment and Shoe care, Interior textile, Stationery,
+    Fun (98 articles, ~0.01% of revenue). They have no style to predict.
+  - Articles with an unknown/undefined value in a style attribute (278 articles, ~0.4% of revenue). Their style isn't defined.
+  - This leaves 105,166 articles and 31,653,188 transactions. Implemented in `data_science/data.py` (`load_articles`).
+  - Kept on purpose: identical transaction rows (~9%, multiple units, since there is no quantity column), very low prices
+    (~0.01% of revenue) and bulk purchases (~0.2% of revenue). Details in
+    [`03_data_quality_and_eda.ipynb`](data_science/notebooks/03_data_quality_and_eda.ipynb).
 - **Images: only what's needed.** The full set is ~29 GB; we only use images of the top styles and of the
   articles shown in the app.
 - **COVID is kept and flagged.** Store sales are missing from 2020-03-20 to 2020-05-05 (all sales are online).
@@ -120,8 +124,8 @@ Evidence ([`02_eda_trends.ipynb`](data_science/notebooks/02_eda_trends.ipynb)):
 
 - **Long enough to be reliable.** Scoring each style separately from the odd and even days of the same period,
   the two rankings agree at 0.97 for ~91-day periods (top-50 overlap 0.90). Noise only matters below about a month.
-- **Strong seasonality.** A style's success correlates with the same dates a year later (median +0.56 for the
-  top 300 styles) and negatively with the opposite half-year (−0.41). So "same quarter last year" is useful history.
+- **Strong seasonality.** A style's success correlates with the same dates a year later (median +0.55 for the
+  top 300 styles) and negatively with the opposite half-year (−0.43). So "same quarter last year" is useful history.
 - **Short enough for the data.** The two years contain 8 quarters, 4 of which have the same quarter a year earlier.
   Half-year seasons would leave only 4 periods, with just 2 of them having a year-earlier equivalent.
 
@@ -148,7 +152,9 @@ data_science/
     style.py                  # style definition and style_id
     success.py                # success score
   notebooks/
-    01_style_and_success_definition.ipynb
+    01_style_and_success_definition.ipynb   # style and success metric decisions
+    02_eda_trends.ipynb                     # how style success changes over time → prediction period
+    03_data_quality_and_eda.ipynb           # data quality, cleaning, sales/product/category/customer EDA
 backend/  frontend/  models/  outputs/   # to be filled
 ```
 

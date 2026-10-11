@@ -7,7 +7,35 @@ concepts with generative AI, and let business users explore the results through 
 Retail Data → Data Processing → ML Model → Prediction Output → Backend API → Frontend → Business User
 ```
 
-> 🚧 Work in progress. Sections marked _TBD_ will be filled in as the project develops.
+## Quick start: run the app (no accounts needed)
+
+The repository contains everything the app needs: predictions, explanations, sales history, article images and the
+generated concepts (`outputs/`). Requires **Python 3.12** and **Node.js 20+**.
+
+```bash
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt            # macOS/Linux: .venv/bin/pip
+.venv/Scripts/python -m uvicorn backend.api:app           # API on http://localhost:8000 (docs: /docs)
+```
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev                                               # app on http://localhost:5173
+```
+
+Optional extras need their own (free) accounts; see [Setup](#setup):
+
+| To… | You need |
+|---|---|
+| browse seasons, predictions, style details, concepts | nothing |
+| chat with the AI assistant | a Gemini API key in `.env` |
+| re-run the data science (notebooks, training, prediction) | the Kaggle CSVs |
+| generate new concepts | Gemini + Cloudflare keys in `.env` |
+
+![The app: predicted winners for Autumn 2020](docs/screenshots/app_predicted_season.png)
 
 ## Data
 
@@ -502,13 +530,43 @@ frontend/                     # React app: season timeline, Pinterest-style boar
 
 ## Setup
 
+### 1. Run the app
+
+See [Quick start](#quick-start-run-the-app-no-accounts-needed). No accounts or data downloads are needed: the API reads
+only the files in `outputs/`.
+
+### 2. Optional: the AI assistant
+
+Create a free Gemini API key at <https://aistudio.google.com/apikey>, copy `.env.example` to `.env` and set
+`GEMINI_API_KEY`. Restart the API. Without a key, the chat panel says it isn't configured; the rest of the app works.
+
+### 3. Optional: reproduce the data science
+
+The raw data is licensed by Kaggle and not included. Download `articles.csv` and `transactions_train.csv` from the
+[H&M competition](https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations/data) (accept the
+competition rules first) into `kaggle_downlods/`, then:
+
 ```bash
-python -m venv .venv
-.venv/Scripts/pip install -r requirements.txt      # Windows (use .venv/bin/pip on macOS/Linux)
-.venv/Scripts/python -m data_science.train      # evaluate + train the final model
-.venv/Scripts/kaggle auth login                # once: lets the pipeline fetch the 93 images the app shows
-.venv/Scripts/python -m data_science.predict    # predict Autumn 2020, write the API artifacts, fetch the images
-.venv/Scripts/python -m uvicorn backend.api:app  # serve the API (http://localhost:8000/docs)
-.venv/Scripts/python -m data_science.generate_concepts  # next-season concepts (needs the keys in .env)
-cd frontend && npm install && npm run dev         # the app (http://localhost:5173)
+.venv/Scripts/python -m data_science.train      # evaluate (walk-forward) and train the final model
+.venv/Scripts/python -m data_science.predict    # predict the next quarter and write the API artifacts
+.venv/Scripts/jupyter notebook data_science/notebooks/   # the analysis, notebooks 01-05
+```
+
+The first run converts the 3.5 GB transactions CSV to a Parquet cache in `data/` (about a minute). `predict` also
+fetches any article images the app needs that aren't in `outputs/images/` yet; that uses the Kaggle API
+(`.venv/Scripts/kaggle auth login` once). Without a Kaggle login it still completes and prints a warning.
+
+### 4. Optional: generate new concepts
+
+Needs `GEMINI_API_KEY` plus `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env` (see `.env.example`), then:
+
+```bash
+.venv/Scripts/python -m data_science.generate_concepts            # only creates concepts that don't exist yet
+.venv/Scripts/python -m data_science.generate_concepts --force    # regenerate all
+```
+
+### Tests
+
+```bash
+.venv/Scripts/python -m pytest backend/tests
 ```

@@ -216,7 +216,7 @@ def _wrap(draw, text: str, font, width: int) -> list[str]:
 
 def compose(styles: list[dict], designs: dict, path: Path) -> None:
     """The three concepts side by side, each with its concept name, predicted style and score."""
-    panel_w, img_h, pad, caption_h, title_h = 600, 600, 40, 230, 110
+    panel_w, img_h, pad, caption_h, title_h = 600, 600, 40, 150, 110
     canvas = Image.new("RGB", (pad + len(styles) * (panel_w + pad), title_h + img_h + caption_h + pad), "white")
     draw = ImageDraw.Draw(canvas)
     draw.text((pad, 30), f"Next-season concepts · {styles[0]['season']}", fill="#171717", font=_font(44, bold=True))

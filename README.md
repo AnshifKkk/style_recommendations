@@ -415,6 +415,12 @@ npm run dev            # http://localhost:5173 (expects the API on http://localh
 - **Detail view** (Details button): the style's images, attributes, the prediction for the next quarter (score, rank,
   percentile, summary), the reasoning (feature contributions) and its historical performance per quarter.
 
+| Past season: actual winners, hover explains the score | Style detail: prediction, reasons, history |
+|---|---|
+| ![Score explanation](docs/screenshots/app_score_tooltip.png) | ![Style detail](docs/screenshots/app_style_detail.png) |
+| **Predicted season: the three concepts in one image** | **AI assistant: answers from the data, shows the tools used** |
+| ![Concepts](docs/screenshots/app_concepts.png) | ![Assistant](docs/screenshots/app_assistant.png) |
+
 | File | Role |
 |---|---|
 | `src/api.ts` | typed API client |

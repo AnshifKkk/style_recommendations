@@ -24,6 +24,7 @@ IMAGE_URL_TEMPLATE = os.environ.get("IMAGE_URL_TEMPLATE")
 # Local mode: fetch a missing image from Kaggle the first time the app shows it (set IMAGES_ON_DEMAND=0 to disable)
 IMAGES_ON_DEMAND = os.environ.get("IMAGES_ON_DEMAND", "1") != "0"
 CONCEPTS_DIR = OUTPUTS_DIR / "concepts"   # optional: <style_id>.png + concepts.json from the concept-generation step
+CONCEPTS_IMAGE = OUTPUTS_DIR / "generated_concepts.png"   # optional: all three concepts in one image
 COMING_SOON_QUARTERS = 4                  # seasons after the prediction quarter shown as "coming soon"
 SEASON_START_MONTH = {"spring": 3, "summer": 6, "autumn": 9, "winter": 12}
 
@@ -229,8 +230,9 @@ class StyleService:
             return {**info, "styles": []}
         winners = self.winners[self.winners.quarter_id == quarter_id].sort_values("rank")
         articles = self.season_articles[self.season_articles.quarter_id == quarter_id]
-        return {**info, "styles": [self._season_style(w, articles[articles.style_id == w.style_id], info)
-                                   for w in winners.itertuples()]}
+        styles = [self._season_style(w, articles[articles.style_id == w.style_id], info) for w in winners.itertuples()]
+        concepts_image = "/concepts-image" if info["status"] == "predicted" and CONCEPTS_IMAGE.exists() else None
+        return {**info, "styles": styles, "concepts_image_url": concepts_image}
 
     def _season_info(self, quarter_id: str, status: str) -> dict:
         start, end = _quarter_dates(quarter_id)

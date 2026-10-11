@@ -137,3 +137,27 @@ class SeasonStyle(BaseModel):
 
 class SeasonDetail(SeasonInfo):
     styles: list[SeasonStyle]
+    concepts_image_url: str | None = Field(default=None, description="The single image with all three concepts "
+                                                                    "(predicted season only, once generated)")
+
+
+# ------------------------------------------------------------------ assistant
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=40,
+                                        description="The conversation so far, oldest first, ending with the user's question")
+
+
+class ToolCall(BaseModel):
+    name: str
+    args: dict
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    tools_used: list[ToolCall] = Field(description="The data tools the assistant called to answer")
+    model: str

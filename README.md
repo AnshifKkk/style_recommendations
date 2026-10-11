@@ -285,6 +285,7 @@ FastAPI service exposing the predictions (`backend/`). It reads only the artifac
 | `backend/api.py` | routes, validation, error handling (FastAPI app factory `create_app`) |
 | `backend/model_service.py` | loads the model outputs and builds responses (ranking, explanations, history) |
 | `backend/images.py` | local image store that fetches a missing image on first request |
+| `backend/assistant.py` | the AI assistant: Gemini with function calling over the service's data |
 | `backend/schemas.py` | response models (Pydantic); they generate the OpenAPI docs |
 | `backend/tests/test_api.py` | endpoint tests (`pytest backend/tests`) |
 
@@ -300,6 +301,7 @@ FastAPI service exposing the predictions (`backend/`). It reads only the artifac
 | `GET /styles?limit=20&offset=0&segment=&product_type=&include_all=false` | the full ranking, paginated and filterable |
 | `GET /styles/{style_id}` | product information, prediction score, model explanation and historical performance; **404** for an unknown `style_id` |
 | `GET /seasons` | the app's timeline: past seasons (`actual`), the next quarter (`predicted`), the 4 after it (`coming_soon`) |
+| `POST /chat` | the AI assistant: answers a question about styles, seasons, predictions or concepts (see below) |
 | `GET /seasons/{quarter_id}` | a season's top 3 styles with success score, a plain-language explanation of the score, their 5 best-selling articles of that season, and (predicted season) the generated concept; empty for `coming_soon`, **404** for an unknown season |
 
 Scores in every style object:
@@ -429,6 +431,31 @@ missing designs/images are generated, so re-running each quarter only creates th
 
 Credentials go in environment variables or the git-ignored `.env` file: `GEMINI_API_KEY` (Google AI Studio),
 `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` (Cloudflare "Workers AI" token template).
+
+## AI assistant (agentic extension)
+
+A chat assistant in the app ("Ask the assistant", bottom right) answers business questions such as *"Why is the black
+skirt the #1 style?"*, *"What won in Summer 2019?"* or *"Which Menswear styles look strongest next season?"*.
+
+- **Agent with tools.** Gemini (free text model) uses **function calling**: it decides which data tools to call, reads
+  the results, and answers. The tools are thin wrappers around the same `StyleService` the API uses, so answers come
+  from the model's outputs, not from the language model's memory:
+
+  | Tool | Returns |
+  |---|---|
+  | `list_seasons` | all seasons and their status (actual / predicted / coming soon) |
+  | `get_season_winners` | a season's top 3 styles with score, best sellers and (predicted season) concept |
+  | `get_top_predicted_styles` | the ranking for the next quarter |
+  | `get_style_details` | one style's prediction, its drivers, and its score and units in every past quarter |
+  | `search_styles` | styles by segment, product type, colour or any part of the name |
+
+- **Grounded and transparent.** The system prompt tells it to use only tool results and to give reasons only for styles
+  whose details it fetched; each reply in the app shows which tools were used ("used: style details, …").
+- **Conversation.** The app sends the whole conversation, so follow-ups work ("And what concept was generated for it?").
+- **API:** `POST /chat` with `{"messages": [{"role": "user", "content": "..."}]}` returns `{"reply", "tools_used", "model"}`;
+  `503` if `GEMINI_API_KEY` isn't set or the model is unavailable. It falls back to lighter Gemini models when the first
+  one is busy (`ASSISTANT_MODELS`). Code: `backend/assistant.py`.
+- Answers take about 10–30 seconds on the free tier.
 
 ## Limitations
 

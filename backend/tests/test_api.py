@@ -144,3 +144,47 @@ def test_coming_soon_and_unknown_seasons(client):
     assert client.get(f"/seasons/{coming['quarter_id']}").json()["styles"] == []
     assert client.get("/seasons/2035_spring").status_code == 404
     assert client.get("/seasons/not_a_season").status_code == 404
+
+
+def test_predicted_season_links_the_combined_concepts_image(client):
+    from backend.model_service import CONCEPTS_IMAGE
+    predicted = next(s for s in client.get("/seasons").json() if s["status"] == "predicted")
+    url = client.get(f"/seasons/{predicted['quarter_id']}").json()["concepts_image_url"]
+    if not CONCEPTS_IMAGE.exists():
+        assert url is None and client.get("/concepts-image").status_code == 404
+    else:
+        response = client.get(url)
+        assert response.status_code == 200 and response.headers["content-type"] == "image/png"
+
+
+# ------------------------------------------------------------------ assistant (no calls to the language model)
+def test_assistant_tools_return_grounded_data():
+    from backend.assistant import make_tools
+    from backend.model_service import StyleService
+    tools = {f.__name__: f for f in make_tools(StyleService())}
+    top = tools["get_top_predicted_styles"](3)["styles"]
+    assert [s["rank"] for s in top] == [1, 2, 3]
+    found = tools["search_styles"](text=top[0]["name"].split(" · ")[1])["styles"]
+    assert any(s["style_id"] == top[0]["style_id"] for s in found)
+    details = tools["get_style_details"](top[0]["style_id"])
+    assert details["rank"] == 1 and details["drivers"] and details["history"]
+    assert "error" in tools["get_style_details"]("not_a_style")
+    assert "error" in tools["get_season_winners"]("not_a_season")
+
+
+def test_chat_without_api_key_returns_503():
+    from backend.api import create_app
+    from backend.assistant import Assistant
+    from backend.model_service import StyleService
+    service = StyleService()
+    assistant = Assistant(service)
+    assistant.api_key = None
+    client = TestClient(create_app(service, assistant))
+    response = client.post("/chat", json={"messages": [{"role": "user", "content": "What won in Summer 2019?"}]})
+    assert response.status_code == 503
+
+
+def test_chat_validates_the_conversation(client):
+    assert client.post("/chat", json={"messages": []}).status_code == 422
+    last_from_assistant = {"messages": [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}]}
+    assert client.post("/chat", json=last_from_assistant).status_code == 400

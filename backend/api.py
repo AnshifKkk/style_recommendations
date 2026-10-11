@@ -9,25 +9,29 @@ Endpoints
 - GET /styles/{style_id}         product information, prediction, explanation and sales history of one style
 - GET /seasons                   the timeline: past seasons (actual), the next quarter (predicted), later (coming soon)
 - GET /seasons/{quarter_id}      a season's top 3 styles with score, hover explanation, articles and (predicted) concepts
+- POST /chat                     the AI assistant: answers questions using the same data, via tool calls
 """
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.model_service import SeasonNotFound, StyleNotFound, StyleService, quarter_label
-from backend.schemas import Health, SeasonDetail, SeasonInfo, StyleDetail, StyleList, TopStylesResponse
+from backend.assistant import Assistant, AssistantUnavailable
+from backend.model_service import CONCEPTS_IMAGE, SeasonNotFound, StyleNotFound, StyleService, quarter_label
+from backend.schemas import (ChatRequest, ChatResponse, Health, SeasonDetail, SeasonInfo, StyleDetail, StyleList,
+                             TopStylesResponse)
 
 
-def create_app(service: StyleService | None = None) -> FastAPI:
+def create_app(service: StyleService | None = None, assistant: Assistant | None = None) -> FastAPI:
     service = service or StyleService()
+    assistant = assistant or Assistant(service)
     app = FastAPI(
         title="Style Intelligence API",
         version="1.0.0",
         description=f"Predicted winning styles for {quarter_label(service.quarter)}, with explanations and sales history. "
                     "Only commercially relevant styles (top 10% by revenue last quarter) are ranked.",
     )
-    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
     if service.concepts_dir.is_dir():
         app.mount("/concepts", StaticFiles(directory=service.concepts_dir), name="concepts")
 
@@ -70,6 +74,13 @@ def create_app(service: StyleService | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Image not available")
         return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
+    @app.get("/concepts-image", tags=["seasons"], responses={404: {"description": "Concepts not generated yet"}})
+    def concepts_image():
+        """The single image with the three next-season concepts (outputs/generated_concepts.png)."""
+        if not CONCEPTS_IMAGE.exists():
+            raise HTTPException(status_code=404, detail="Concepts not generated yet")
+        return FileResponse(CONCEPTS_IMAGE, media_type="image/png")
+
     @app.get("/seasons", response_model=list[SeasonInfo], tags=["seasons"])
     def seasons():
         """All seasons of the timeline, oldest first."""
@@ -85,6 +96,19 @@ def create_app(service: StyleService | None = None) -> FastAPI:
         except SeasonNotFound:
             raise HTTPException(status_code=404, detail=f"Season '{quarter_id}' not found. "
                                                         "Use GET /seasons to list valid seasons.")
+
+    @app.post("/chat", response_model=ChatResponse, tags=["assistant"],
+              responses={400: {"description": "The last message must be from the user"},
+                         503: {"description": "Assistant not configured or the language model is unavailable"}})
+    def chat(request: ChatRequest):
+        """Ask the AI assistant a question about styles, seasons, predictions or concepts. Send the whole conversation;
+        the reply says which data tools were used to answer."""
+        if request.messages[-1].role != "user":
+            raise HTTPException(status_code=400, detail="The last message must be from the user")
+        try:
+            return assistant.reply([m.model_dump() for m in request.messages])
+        except AssistantUnavailable as error:
+            raise HTTPException(status_code=503, detail=str(error))
 
     return app
 

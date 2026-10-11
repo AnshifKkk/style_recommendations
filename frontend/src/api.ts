@@ -37,6 +37,7 @@ export interface SeasonStyle {
 
 export interface SeasonDetail extends SeasonInfo {
   styles: SeasonStyle[];
+  concepts_image_url: string | null;
 }
 
 export interface QuarterSales {
@@ -72,6 +73,30 @@ export interface StyleDetail {
   sales_history: QuarterSales[];
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  tools_used: { name: string; args: Record<string, unknown> }[];
+  model: string;
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail ?? `Request failed (${response.status})`);
+  }
+  return response.json() as Promise<T>;
+}
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`);
   if (!response.ok) {
@@ -85,6 +110,7 @@ export const api = {
   seasons: () => get<SeasonInfo[]>("/seasons"),
   season: (quarterId: string) => get<SeasonDetail>(`/seasons/${quarterId}`),
   style: (styleId: string) => get<StyleDetail>(`/styles/${encodeURIComponent(styleId)}`),
+  chat: (messages: ChatMessage[]) => post<ChatResponse>("/chat", { messages }),
 };
 
 /** Image paths from the API are relative to the API server. */

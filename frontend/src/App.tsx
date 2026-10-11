@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type SeasonDetail, type SeasonInfo } from "./api";
 import SeasonTimeline from "./components/SeasonTimeline";
+import ChatPanel from "./components/ChatPanel";
+import ConceptsOverview from "./components/ConceptsOverview";
 import StyleBoard from "./components/StyleBoard";
 import StyleDetail from "./components/StyleDetail";
 
@@ -63,12 +65,16 @@ export default function App() {
               </p>
             </div>
           ) : (
-            season.styles.map((s) => <StyleBoard key={s.style_id} style={s} predicted={predicted} onOpen={setOpenStyle} />)
+            <>
+              {season.styles.map((s) => <StyleBoard key={s.style_id} style={s} predicted={predicted} onOpen={setOpenStyle} />)}
+              {season.concepts_image_url && <ConceptsOverview imageUrl={season.concepts_image_url} styles={season.styles} />}
+            </>
           )}
         </main>
       )}
 
       {openStyle && <StyleDetail styleId={openStyle} onClose={closeDetail} />}
+      <ChatPanel />
     </div>
   );
 }

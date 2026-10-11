@@ -91,7 +91,26 @@ and predicting what performs is the goal. Without stock/assortment data we can't
 
 ### Prediction period
 
-_TBD_
+**Autumn 2020: 1 Sep – 30 Nov 2020**, predicted from data up to 31 Aug 2020.
+
+We predict the best three styles for **one quarter**, assuming production and restocking decisions are made
+quarterly. The success score is aggregated over the whole quarter, because that is the level at which
+"what should we produce" is decided.
+
+Quarters follow the fashion seasons: Spring (Mar–May), Summer (Jun–Aug), Autumn (Sep–Nov), Winter (Dec–Feb).
+They line up with the half-year switch points seen in the data (styles' success changes around 1 March and
+1 September), while calendar quarters would mix summer and autumn styles.
+
+Evidence ([`02_eda_trends.ipynb`](data_science/notebooks/02_eda_trends.ipynb)):
+
+- **Long enough to be reliable.** Scoring each style separately from the odd and even days of the same period,
+  the two rankings agree at 0.97 for ~91-day periods (top-50 overlap 0.90). Noise only matters below about a month.
+- **Strong seasonality.** A style's success correlates with the same dates a year later (median +0.56 for the
+  top 300 styles) and negatively with the opposite half-year (−0.41). So "same quarter last year" is useful history.
+- **Short enough for the data.** The two years contain 8 quarters, 4 of which have the same quarter a year earlier.
+  Half-year seasons would leave only 4 periods, with just 2 of them having a year-earlier equivalent.
+
+The 22 days of September 2020 in the data belong to the target quarter. They are not used as model inputs.
 
 ## Limitations
 

@@ -8,8 +8,8 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
-# Generated caches
-*.parquet
+# Test caches
+.pytest_cache/
 
 # OS / editor
 .DS_Store

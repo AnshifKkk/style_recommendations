@@ -1,10 +1,13 @@
 quarter,model,top3_quality,split
-2019_winter,baseline: last quarter,0.8660931706977368,validation
-2019_winter,ridge,0.9206065096329887,validation
-2019_winter,lightgbm,0.8719584746761702,validation
-2020_spring,baseline: last quarter,0.7167371404727152,validation
-2020_spring,ridge,0.8788180730188914,validation
-2020_spring,lightgbm,0.9156123921244146,validation
-2020_summer,baseline: last quarter,0.8392558142950781,test
-2020_summer,ridge,0.8942034227548384,test
-2020_summer,lightgbm,0.82517601244104,test
+2019_autumn,baseline: last quarter,0.8575537388145504,validation
+2019_autumn,ridge,0.9108780427249609,validation
+2019_autumn,lightgbm,0.994190975284602,validation
+2019_winter,baseline: last quarter,0.869401564840871,validation
+2019_winter,ridge,0.9487986267738079,validation
+2019_winter,lightgbm,0.8986608227508114,validation
+2020_spring,baseline: last quarter,0.8193358392081328,test
+2020_spring,ridge,0.9547651593588616,test
+2020_spring,lightgbm,0.8976175549540243,test
+2020_summer,baseline: last quarter,0.991741410534459,test
+2020_summer,ridge,0.991741410534459,test
+2020_summer,lightgbm,0.8461224195153301,test

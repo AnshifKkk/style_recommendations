@@ -153,7 +153,7 @@ The 22 days of September 2020 in the data belong to the target quarter. They are
 | Per-style time series (ARIMA, ETS, Prophet, Croston) | Rejected | See below. |
 | Deep learning (DeepAR, N-BEATS, Temporal Fusion Transformer, tabular MLP/TabNet) | Rejected | See below. |
 | Pretrained time-series models (Chronos, TimesFM) | Rejected | Forecast a single numeric series; our target is a relative score that depends on the other styles, and each series has ≤ 8 points. |
-| **Ridge regression** on engineered features, one model across all styles | **Final model** | Linear, regularised (stable with correlated features such as the different lags), fast, and every prediction decomposes exactly into feature contributions. |
+| **Ridge regression** on engineered features, one model across all styles | **Final model** | Linear, deterministic, fast, and every prediction decomposes exactly into feature contributions. (On 145k rows the ridge penalty has no measurable effect, so it is effectively linear regression.) |
 | **LightGBM** (gradient-boosted trees) on the same features | Compared | The standard non-linear model for tabular retail forecasting. Tests whether interactions and non-linear effects add anything. A learning-to-rank variant was also tried and ranked worse at the top. |
 | Hierarchical / Bayesian panel model | Future improvement | Shrinks small styles towards their category; interpretable, but slower to build. |
 | Image embeddings (CLIP/CNN) as features | Future improvement | Could capture fit and silhouette, which the attributes miss; needs the ~29 GB image set. |
@@ -192,22 +192,53 @@ All features for a quarter use only data from before the quarter starts (`data_s
 
 ### Evaluation
 
-- **Walk-forward:** for each evaluation quarter, models are trained only on earlier quarters and predict every style
-  with sales history. Winter 2019 and Spring 2020 are used to choose the model; **Summer 2020 is the test quarter**.
-- **Metric, top-3 quality:** the average actual success score of the three styles we pick ÷ the average actual score of
-  the true top three. 1.0 means our picks did as well as the best possible picks. It measures exactly the business
-  decision (which three styles to produce), and still gives credit when a pick is a near-miss.
+Full walk-through with code: [`05_modelling.ipynb`](data_science/notebooks/05_modelling.ipynb).
+
+- **Business rule, commercially relevant styles:** only styles whose revenue last quarter was in the **top 10% of styles
+  that sold** can be recommended (~1,200–1,300 styles per quarter). It uses only pre-quarter data, so it also applies to
+  the final prediction. All results are among these styles: our picks and the true winners both come from this pool.
+  Without the rule, most misses were small kids' styles jumping suddenly in a small category (e.g. a kids' sweater going
+  from 0.40 to 4.75 in summer): not predictable from history and of little commercial weight.
+- **Baseline: last quarter's success score**, the "do nothing" forecast a merchandiser would make. Success persists
+  (rank correlation with last quarter 0.68–0.79), so it is a real bar to beat.
+- **Walk-forward:** each evaluated quarter is predicted by models trained on all earlier quarters.
+  **Validation: Autumn 2019 + Winter 2019** (choose the metric and the model). **Test: Spring 2020 + Summer 2020**
+  (report the chosen model only; the validation quarters are part of its training data).
+- **Metric: top-3 quality**: the average actual success score of the three styles we pick ÷ the average actual score of
+  the true top three (1.0 = the best possible picks). It measures the decision itself, which three styles to produce,
+  and gives credit for near-misses. Top-10/top-50 quality, NDCG@50 and Spearman are reported as context.
 
 ### Results
 
-| Model | Winter 2019 | Spring 2020 (COVID) | **Validation mean** | **Test: Summer 2020** |
-|---|---|---|---|---|
-| Baseline: last quarter | 0.866 | 0.717 | 0.791 | 0.839 |
-| **Ridge** | **0.921** | 0.879 | **0.900** | **0.894** |
-| LightGBM | 0.872 | **0.916** | 0.894 | 0.825 |
+**Validation** (mean of Autumn 2019 and Winter 2019):
 
-- Both models beat the baseline, most clearly in Spring 2020 when COVID disrupted last quarter's pattern.
-- **Ridge is chosen**: best on validation and on the test quarter, simpler, and its explanations are exact.
+| Model | **Top-3 quality** | Top-10 quality | Top-50 quality | NDCG@50 | Spearman |
+|---|---|---|---|---|---|
+| Baseline: last quarter | 0.863 | 0.929 | 0.925 | 0.922 | 0.765 |
+| **Ridge** | 0.930 | **0.980** | **0.958** | **0.951** | **0.851** |
+| LightGBM (5-seed average) | **0.946** | 0.947 | 0.950 | 0.943 | 0.846 |
+
+| Top-3 quality | Autumn 2019 | Winter 2019 | Mean | Worst quarter |
+|---|---|---|---|---|
+| Baseline: last quarter | 0.858 | 0.869 | 0.863 | 0.858 |
+| **Ridge** | 0.911 | **0.949** | 0.930 | **0.911** |
+| LightGBM | **0.994** | 0.899 | **0.946** | 0.899 |
+
+**Choice: ridge.** Both models beat the baseline in both validation quarters. LightGBM's slightly higher top-3 mean
+comes entirely from one quarter (Autumn 2019), and it loses Winter 2019. Ridge has the better worst quarter, is ahead on
+every other metric, gives the same picks every run (single-seed LightGBM ranged 0.83–0.98 on Winter 2019), and its
+explanations are exact. The choice was fixed before looking at the test quarters.
+
+**Test** (mean of Spring 2020 and Summer 2020):
+
+| Model | **Top-3 quality** | Top-10 quality | Top-50 quality | NDCG@50 | Spearman |
+|---|---|---|---|---|---|
+| Baseline: last quarter | 0.906 | 0.886 | 0.909 | 0.906 | 0.759 |
+| **Ridge** | **0.973** | **0.943** | **0.950** | **0.946** | **0.882** |
+
+- Ridge clearly beats the baseline in Spring 2020 (0.955 vs 0.819), the COVID quarter when last quarter's pattern broke,
+  and matches it in Summer 2020 (0.992 each), when the true winners were exactly last quarter's leaders.
+- Over all four evaluated quarters, ridge beats the baseline in three and ties in one.
 
 **Why a linear model is enough.** The relationship between a style's recent performance and its next-quarter
 performance is close to a straight line (on the log scale):
@@ -222,12 +253,94 @@ performance is close to a straight line (on the log scale):
 
 ### Final model and prediction
 
-`python -m data_science.train` evaluates and then trains ridge on all labelled quarters (`models/ridge.joblib`).
+`python -m data_science.train` evaluates and then trains ridge on all labelled quarters, validation and test included
+(`models/ridge.joblib`).
 `python -m data_science.predict` scores every style for Autumn 2020 (`outputs/predictions.csv`) and writes each
-prediction's largest feature contributions (`outputs/explanations.csv`). Because the model is linear, a prediction is
+prediction's largest feature contributions (`outputs/explanations.parquet`), plus each style's quarterly history and
+best-selling articles for the API. Because the model is linear, a prediction is
 exactly the average prediction plus the sum of contributions, coefficient × (feature value − training average),
 which equals its SHAP values. The predicted score is on the success-score scale; values above the historical maximum
 reflect linear extrapolation and only the ranking is used.
+
+**Predicted winning styles for Autumn 2020** (1 Sep – 30 Nov 2020, among commercially relevant styles):
+
+| Rank | Style | Main reasons (largest contributions) |
+|---|---|---|
+| 1 | Ladieswear · Skirt · Solid · Black · Dark | very strong last 4 weeks (score 3.97) and 4-quarter average (3.66) |
+| 2 | Ladieswear · Dress · Solid · Black · Dark | strong last 4 weeks (3.41) and average (3.40); 85 new articles launched in the last 13 weeks |
+| 3 | Divided · Sweater · Solid · Black · Dark | strong 4-quarter average (3.78); 4.13 in the same quarter last year |
+
+## Backend API
+
+FastAPI service exposing the predictions (`backend/`). It reads only the artifacts written by
+`python -m data_science.predict` (`outputs/predictions.csv`, `explanations.parquet`, `style_history.parquet`,
+`style_articles.parquet`), so it contains no ML code and runs without the raw Kaggle data.
+
+| File | Role |
+|---|---|
+| `backend/api.py` | routes, validation, error handling (FastAPI app factory `create_app`) |
+| `backend/model_service.py` | loads the model outputs and builds responses (ranking, explanations, history) |
+| `backend/schemas.py` | response models (Pydantic); they generate the OpenAPI docs |
+| `backend/tests/test_api.py` | endpoint tests (`pytest backend/tests`) |
+
+```bash
+.venv/Scripts/python -m uvicorn backend.api:app --reload    # interactive docs: http://localhost:8000/docs
+.venv/Scripts/python -m pytest backend/tests
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | service status, prediction quarter, number of styles |
+| `GET /styles/top?limit=3` | the top predicted styles (1–50), each with style ID, prediction score, category and sales history |
+| `GET /styles?limit=20&offset=0&segment=&product_type=&include_all=false` | the full ranking, paginated and filterable |
+| `GET /styles/{style_id}` | product information, prediction score, model explanation and historical performance; **404** for an unknown `style_id` |
+
+Scores in every style object:
+
+- `prediction_score`: the predicted success score for the quarter (1 = as good as a typical style of its category). The
+  model is linear on log(1 + score), so for the strongest styles it extrapolates above the historical maximum (~4.75);
+  only the ranking is validated.
+- `relative_score`: `prediction_score` ÷ that of the #1 style (1.0 = top style), an easy 0–1 reading.
+- `percentile`: share of the other ranked styles the style is ahead of (#3 of 1,272 → 0.998).
+
+Example, `GET /styles/top?limit=1`:
+
+```json
+{
+  "quarter": "2020_autumn",
+  "candidates": 1272,
+  "styles": [{
+    "rank": 1,
+    "style_id": "ladieswear__skirt__solid__black__dark",
+    "name": "Ladieswear · Skirt · Solid · Black · Dark",
+    "category": "Ladieswear · Skirt",
+    "prediction_score": 6.627,
+    "relative_score": 1.0,
+    "percentile": 1.0,
+    "units_last_quarter": 10370,
+    "image_url": null,
+    "sales_history": [{"quarter_id": "2020_summer", "season": "summer", "success_score": 4.474,
+                       "revenue": 359.809, "units": 10370, "articles": 113}]
+  }]
+}
+```
+
+(`sales_history` lists all eight quarters; shortened here.) `GET /styles/{style_id}` adds the attributes, the
+best-selling articles (name, description, Kaggle image path), and an explanation:
+
+```json
+"explanation": {
+  "summary": "Ranked #1 of 1,272 commercially relevant styles for Autumn 2020. Main drivers: success score in the last 4 weeks: 3.97; average success score over the last 4 quarters: 3.66.",
+  "contributions": [
+    {"feature": "score_last4w", "label": "Success score in the last 4 weeks", "value": "3.97", "contribution": 1.173, "effect": "raises"},
+    {"feature": "score_mean4", "label": "Average success score over the last 4 quarters", "value": "3.66", "contribution": 0.534, "effect": "raises"}
+  ]
+}
+```
+
+Images: article images are not in the repository (the Kaggle set is ~29 GB). Put `<article_id>.jpg` files in
+`outputs/images/` and the API serves them at `/images/<article_id>.jpg` and fills in `image_url`; every article also
+carries its `kaggle_image_path`.
 
 ## Limitations
 
@@ -258,9 +371,15 @@ data_science/
     02_eda_trends.ipynb                     # how style success changes over time → prediction period
     03_data_quality_and_eda.ipynb           # data quality, cleaning, sales/product/category/customer EDA
     04_style_quarter_table.ipynb            # the style × quarter table and its target
+    05_modelling.ipynb                      # baseline, models, metric, model choice, test, Autumn 2020 prediction
 models/ridge.joblib           # final model
-outputs/                      # evaluation.csv, predictions.csv, explanations.csv
-backend/  frontend/           # to be filled
+outputs/                      # evaluation.csv, predictions.csv + API artifacts (explanations, history, articles)
+backend/
+  api.py                      # FastAPI routes
+  model_service.py            # reads model outputs, builds responses
+  schemas.py                  # response models
+  tests/test_api.py
+frontend/                     # to be filled
 ```
 
 ## Setup
@@ -269,5 +388,6 @@ backend/  frontend/           # to be filled
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt      # Windows (use .venv/bin/pip on macOS/Linux)
 .venv/Scripts/python -m data_science.train      # evaluate + train the final model
-.venv/Scripts/python -m data_science.predict    # predict Autumn 2020
+.venv/Scripts/python -m data_science.predict    # predict Autumn 2020 + write the API artifacts
+.venv/Scripts/python -m uvicorn backend.api:app  # serve the API (http://localhost:8000/docs)
 ```

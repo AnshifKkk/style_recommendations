@@ -3,7 +3,7 @@
 For each evaluation quarter Q, models are trained only on quarters before Q and predict every style that has
 sold before Q. Features only use data from before each row's own quarter (see features/build.py).
 
-    python -m data_science.train                      # evaluate, then train the final model on all quarters
+    python -m data_science.train                      # evaluate, then train the final model (ridge) on all quarters
     python -m data_science.train --rebuild-features   # rebuild the feature table first
 """
 import argparse
@@ -30,12 +30,17 @@ FEATURES_PATH = CACHE_DIR / "features.parquet"
 OUTPUTS = ROOT / "outputs"
 MODEL_PATH = ROOT / "models" / "ridge.joblib"
 
-VALIDATION_QUARTERS = ["2019_winter", "2020_spring"]   # used to choose the model
-TEST_QUARTERS = ["2020_summer"]                         # final check, not used for any choice
+# Business rule: only commercially relevant styles can be recommended, i.e. styles whose revenue last quarter was
+# in the top 10% of styles that sold. Uses only pre-quarter data, so it applies to predictions as well.
+COMMERCIAL_TOP_SHARE = 0.10
+
+VALIDATION_QUARTERS = ["2019_autumn", "2019_winter"]   # used to choose the model and the business-rule threshold
+TEST_QUARTERS = ["2020_spring", "2020_summer"]          # final check, not used for any choice
 
 LGBM_PARAMS = dict(n_estimators=600, learning_rate=0.03, num_leaves=63, min_child_samples=100,
                    subsample=0.8, subsample_freq=1, colsample_bytree=0.8, reg_lambda=1.0,
-                   random_state=42, verbose=-1)
+                   verbose=-1)
+SEEDS = [1, 2, 3, 4, 5]   # the LightGBM prediction is the average of 5 seeds, so the top 3 doesn't depend on one seed
 
 
 # ---------------------------------------------------------------- data
@@ -66,6 +71,13 @@ def top3_quality(y_true, y_pred) -> float:
     return y_true[picked].mean() / best.mean()
 
 
+def commercially_relevant(df: pd.DataFrame, top_share: float = COMMERCIAL_TOP_SHARE) -> pd.Series:
+    """True for styles whose revenue last quarter is in the top `top_share` of styles that sold (per quarter)."""
+    revenue = np.expm1(df.log_revenue_lag1)
+    cutoff = revenue.where(revenue > 0).groupby(df.quarter_id, observed=True).transform(lambda r: r.quantile(1 - top_share))
+    return revenue >= cutoff
+
+
 # ---------------------------------------------------------------- models
 def baseline_last_quarter(train, test):
     return test.score_lag1
@@ -89,10 +101,19 @@ def ridge(train, test):
     return model.predict(as_model_input(test))
 
 
+def fit_lgbm(train: pd.DataFrame) -> list[lgb.LGBMRegressor]:
+    """One LightGBM per seed, each predicting log(1 + success score)."""
+    return [lgb.LGBMRegressor(objective="regression", random_state=seed, **LGBM_PARAMS)
+            .fit(train[FEATURES], np.log1p(train[TARGET]), categorical_feature=CATEGORICAL_FEATURES)
+            for seed in SEEDS]
+
+
+def predict_lgbm(models: list[lgb.LGBMRegressor], rows: pd.DataFrame) -> np.ndarray:
+    return np.mean([m.predict(rows[FEATURES]) for m in models], axis=0)
+
+
 def lgbm_regression(train, test):
-    model = lgb.LGBMRegressor(objective="regression", **LGBM_PARAMS)
-    model.fit(train[FEATURES], np.log1p(train[TARGET]), categorical_feature=CATEGORICAL_FEATURES)
-    return model.predict(test[FEATURES])
+    return predict_lgbm(fit_lgbm(train), test)
 
 
 MODELS = {"baseline: last quarter": baseline_last_quarter, "ridge": ridge, "lightgbm": lgbm_regression}
@@ -100,25 +121,30 @@ MODELS = {"baseline: last quarter": baseline_last_quarter, "ridge": ridge, "ligh
 
 # ---------------------------------------------------------------- walk-forward
 def walk_forward(features: pd.DataFrame, quarters: list[str]) -> pd.DataFrame:
+    """Top-3 quality per quarter and model, among commercially relevant styles (the business rule).
+    Each quarter is predicted by models trained on all earlier quarters."""
     labelled = features[features[TARGET].notna()]
     rows = []
     for qid in quarters:
         qi = labelled.loc[labelled.quarter_id == qid, "qi"].iloc[0]
         train, test = labelled[labelled.qi < qi], labelled[labelled.qi == qi]
+        relevant = commercially_relevant(test).to_numpy()
         for name, fn in MODELS.items():
+            pred = np.asarray(fn(train, test), float)
             rows.append({"quarter": qid, "model": name,
-                         "top3_quality": top3_quality(test[TARGET], fn(train, test))})
+                         "top3_quality": top3_quality(test[TARGET].to_numpy()[relevant], pred[relevant])})
     return pd.DataFrame(rows)
 
 
 def train_final_model(features: pd.DataFrame) -> Pipeline:
-    """Ridge trained on every labelled quarter; saved with what predict.py needs for explanations."""
+    """Ridge trained on every labelled quarter (validation and test included); saved with what predict.py
+    needs for explanations."""
     labelled = features[features[TARGET].notna()]
     model = make_ridge().fit(as_model_input(labelled), np.log1p(labelled[TARGET]))
     train_matrix = model.named_steps["pre"].transform(as_model_input(labelled))
     MODEL_PATH.parent.mkdir(exist_ok=True)
     joblib.dump({"model": model, "train_mean": np.asarray(train_matrix.mean(axis=0)).ravel(),
-                 "trained_on": sorted(labelled.quarter_id.unique())}, MODEL_PATH)
+                 "trained_on": list(labelled.sort_values("qi").quarter_id.unique())}, MODEL_PATH)
     return model
 
 
@@ -133,10 +159,12 @@ def main():
     results["split"] = np.where(results.quarter.isin(TEST_QUARTERS), "test", "validation")
     OUTPUTS.mkdir(exist_ok=True)
     results.to_csv(OUTPUTS / "evaluation.csv", index=False)
+
     table = results.pivot(index="model", columns="quarter", values="top3_quality").loc[list(MODELS)]
     table["validation mean"] = table[VALIDATION_QUARTERS].mean(axis=1)
-    print("top-3 quality (1.0 = our three picks did as well as the best three styles)")
-    print(table[VALIDATION_QUARTERS + ["validation mean"] + TEST_QUARTERS].round(3).to_string())
+    table["test mean"] = table[TEST_QUARTERS].mean(axis=1)
+    print("top-3 quality, commercially relevant styles (1.0 = our three picks did as well as the best three)")
+    print(table[VALIDATION_QUARTERS + ["validation mean"] + TEST_QUARTERS + ["test mean"]].round(3).to_string())
 
     train_final_model(features)
     print(f"\nfinal model trained on all labelled quarters → {MODEL_PATH.relative_to(ROOT)}")

@@ -16,11 +16,21 @@ CACHE_DIR = ROOT / "data"
 
 TX_COLUMNS = ["t_dat", "customer_id", "article_id", "price", "sales_channel_id"]
 
+# Product groups that are not fashion and have no "style" to predict (~0.01% of revenue in total).
+NON_FASHION_GROUPS = ["Items", "Cosmetic", "Furniture", "Garment and Shoe care",
+                      "Interior textile", "Stationery", "Fun"]
 
-def load_articles(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
-    """All article attributes, with `article_id` as int64 (matching transactions)."""
+
+def load_articles(raw_dir: Path = RAW_DIR, fashion_only: bool = True) -> pd.DataFrame:
+    """Article attributes, with `article_id` as int64 (matching transactions).
+
+    By default non-fashion product groups are removed. Transactions of those articles then drop out
+    wherever transactions are joined to articles.
+    """
     art = pd.read_csv(raw_dir / "articles.csv", dtype={"article_id": str, "product_code": str})
     art["article_id"] = art["article_id"].astype("int64")
+    if fashion_only:
+        art = art[~art.product_group_name.isin(NON_FASHION_GROUPS)].reset_index(drop=True)
     return art
 
 

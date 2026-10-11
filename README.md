@@ -23,6 +23,21 @@ Retail Data → Data Processing → ML Model → Prediction Output → Backend A
 
 Place the raw CSVs in `kaggle_downlods/` (git-ignored).
 
+### Data subset
+
+- **Transactions: all of them, no sampling.** The data isn't too big for a laptop (16 GB RAM): as a Parquet
+  cache the transactions take 0.77 GB on disk and ~0.7 GB in memory, and load in seconds. Using everything avoids
+  sampling bias. The days 1–22 Sep 2020 belong to the prediction quarter and are not used as model input.
+- **Non-fashion items removed.** Articles in the product groups Items, Cosmetic, Furniture, Garment and Shoe
+  care, Interior textile, Stationery and Fun (98 articles; ~0.01% of revenue) are excluded, together with their
+  transactions. They have no style to predict. This leaves 105,444 articles and 31,780,277 transactions.
+  Implemented in `data_science/data.py` (`NON_FASHION_GROUPS`).
+- **Images: only what's needed.** The full set is ~29 GB; we only use images of the top styles and of the
+  articles shown in the app.
+- **COVID is kept and flagged.** Store sales are missing from 2020-03-20 to 2020-05-05 (all sales are online).
+  Style rankings in Spring 2020 stay about as stable as in normal quarters, because the success score compares
+  styles within their category, so the quarter is kept.
+
 ## Key definitions
 
 ### What is a "style"?
@@ -122,8 +137,7 @@ The 22 days of September 2020 in the data belong to the target quarter. They are
   leave-one-out benchmark (built only from the *other* styles in the category). It removed this effect,
   but categories with only 2–3 styles produced extreme scores (> 100), and even with size floors the
   winners became "default colour" categories (black belts, tights, leggings, ballerinas). So we kept the
-  inclusive benchmark for now. Single-style categories are negligible either way (35–49 per season,
-  ≈ 0.1% of revenue).
+  inclusive benchmark for now. Single-style categories are negligible either way (≈ 0.1% of revenue).
 
 ## Project structure
 

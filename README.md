@@ -71,13 +71,15 @@ Success score    = Adjusted revenue ÷ Group benchmark
 - **Group benchmark** is the revenue-weighted typical style size of the category. Styles are weighted by
   revenue, so a long tail of tiny styles barely affects it. A score of 1 means "as good as the typical
   style a sale in this category comes from".
-- Styles are ranked by success score; a minimum-size floor removes very small styles.
+- Styles are ranked by success score. There is no minimum-size floor: a small style that beats its category
+  performed well. Whether that success repeats is left to the prediction model (`articles` will be a feature).
 
-Checked on Summer 2019, Autumn 2019 and Summer 2020 (`data_science/explore_success_metric.py`):
+Checked on Summer 2019, Autumn 2019 and Summer 2020
+([`01_style_and_success_definition.ipynb`](data_science/notebooks/01_style_and_success_definition.ipynb)):
 
 - Raw revenue puts only Ladieswear basics in the top 10. The success score's top 50 comes from 45–48 different categories.
 - Scores are fairly stable from season to season (rank correlation 0.51–0.75; about half of the top 50 carries over), so the problem is predictable but not trivial.
-- Very small styles (e.g. 2 articles in small Baby/Children categories) can rank highly, so a minimum-size floor is needed.
+- Very small styles are rare at the top: 1–3 of the top 50 per season have fewer than 5 articles.
 
 ### ⚠️ Flag: supply vs. demand
 
@@ -108,7 +110,13 @@ _TBD_
 
 ```
 data_science/
-  explore_success_metric.py   # computes and sanity-checks the success score on past seasons
+  data.py                     # loads the raw CSVs (builds a Parquet cache of transactions in data/)
+  features/
+    style.py                  # style definition and style_id
+    success.py                # success score
+  notebooks/
+    01_style_and_success_definition.ipynb
+backend/  frontend/  models/  outputs/   # to be filled
 ```
 
 _TBD: model training, backend, frontend, generated concepts._
@@ -118,5 +126,5 @@ _TBD: model training, backend, frontend, generated concepts._
 ```bash
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt      # Windows (use .venv/bin/pip on macOS/Linux)
-.venv/Scripts/python data_science/explore_success_metric.py
+.venv/Scripts/jupyter notebook data_science/notebooks/
 ```

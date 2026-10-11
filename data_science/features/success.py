@@ -11,12 +11,9 @@ the typical style a sale in this category comes from".
 """
 import pandas as pd
 
-MIN_ARTICLES = 5  # minimum-size floor: styles with fewer active articles are not eligible to win
-
 
 def success_scores(tx: pd.DataFrame, styled_articles: pd.DataFrame,
-                   start: str | pd.Timestamp, end: str | pd.Timestamp,
-                   min_articles: int = MIN_ARTICLES) -> pd.DataFrame:
+                   start: str | pd.Timestamp, end: str | pd.Timestamp) -> pd.DataFrame:
     """One row per style that sold in [start, end] (inclusive), sorted by success score.
 
     `styled_articles` is the articles table after `features.style.add_style_columns`.
@@ -42,6 +39,5 @@ def success_scores(tx: pd.DataFrame, styled_articles: pd.DataFrame,
     s["group_styles"] = grp.transform("size")
     s["group_benchmark"] = grp.transform(lambda a: (a ** 2).sum() / a.sum())
     s["success_score"] = s.adjusted_revenue / s.group_benchmark
-    s["eligible"] = s.articles >= min_articles
 
     return s.sort_values("success_score", ascending=False, ignore_index=True)
